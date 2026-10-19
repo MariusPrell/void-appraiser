@@ -24,6 +24,8 @@ def section(version: str) -> str:
 
 
 if __name__ == "__main__":
+    # Windows consoles default to a legacy code page; the changelog contains arrows etc.
+    sys.stdout.reconfigure(encoding="utf-8")
     version = sys.argv[1].removeprefix("v")
     print(section(version))
     print("\n**Installation:** see the [README](https://github.com/MariusPrell/void-appraiser#installation).")
