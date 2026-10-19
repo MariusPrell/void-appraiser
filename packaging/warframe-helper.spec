@@ -4,13 +4,9 @@
 import os
 import sys
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
-
-# RapidOCR bringt Modelle und Konfiguration als Dateien mit
-datas = collect_data_files("rapidocr")
-# Nur die ONNX-Runtime nutzen, die anderen Rechenwerke (PyTorch, Paddle, ...) weglassen
-_unused = ("pytorch", "tensorrt", "paddle", "openvino", "mnn")
-hiddenimports = collect_submodules("rapidocr", filter=lambda name: not any(u in name for u in _unused))
+# OCR-Modelle und ihre Lizenzen (warframe_helper/models/)
+datas = [(os.path.join(SPECPATH, "..", "warframe_helper", "models", "*"), os.path.join("warframe_helper", "models"))]
+hiddenimports = []
 if sys.platform.startswith("linux"):
     hiddenimports += ["pynput.keyboard._xorg", "pynput.mouse._xorg"]
 elif sys.platform == "win32":
@@ -22,7 +18,7 @@ excludes = [
     "PySide6.Qt3DCore", "PySide6.Qt3DRender", "PySide6.QtQuick", "PySide6.QtQml",
     "PySide6.QtQuick3D", "PySide6.QtMultimedia", "PySide6.QtPdf", "PySide6.QtCharts",
     "PySide6.QtDataVisualization", "PySide6.QtGraphs", "PySide6.QtDesigner",
-    "tkinter", "matplotlib", "pytest", "torch", "paddle", "openvino", "tensorrt",
+    "tkinter", "matplotlib", "pytest", "cv2", "rapidocr", "shapely", "pyclipper", "omegaconf",
 ]
 
 a = Analysis(
@@ -32,6 +28,59 @@ a = Analysis(
     hiddenimports=hiddenimports,
     excludes=excludes,
 )
+# Qt-Teile entfernen, die das Programm nicht braucht (Paketgröße).
+# Abgleich ohne Groß-/Kleinschreibung auf den Zielpfad, gilt für Windows und Linux.
+_QT_UNUSED = [
+    "/translations/",
+    # Bibliotheken (Linux: libQt6Quick.so.6, Windows: Qt6Quick.dll)
+    "qt6quick", "qt6qml", "qt6pdf", "qt6virtualkeyboard", "qt6network",
+    "qt6eglfs",  # OpenGL und Svg bleiben: Wayland-Grafik und Fensterrahmen brauchen sie
+    "pyside6/qtnetwork",
+    # Plugins
+    "plugins/imageformats/", "plugins/iconengines/", "plugins/generic/", "plugins/tls/",
+    "plugins/networkinformation/", "plugins/egldeviceintegrations/", "qtvirtualkeyboardplugin",
+    "platforms/libqeglfs", "platforms/libqlinuxfb", "platforms/libqminimalegl",
+    "platforms/libqvkkhrdisplay", "platforms/libqvnc",
+    # GTK-Design zieht unter Linux GTK und viele Systembibliotheken mit; wir nutzen den Fusion-Stil
+    "platformthemes/libqgtk3",
+]
+
+
+def _keep(entry):
+    dest = entry[0].replace("\\", "/").lower()
+    return not any(part in dest for part in _QT_UNUSED)
+
+
+a.binaries = [b for b in a.binaries if _keep(b)]
+a.datas = [d for d in a.datas if _keep(d)]
+
+# Linux: Systembibliotheken weglassen, die nach dem Filtern niemand mehr braucht
+# (z. B. GTK und seine Abhängigkeiten, die nur das entfernte GTK-Design-Plugin nutzte).
+if sys.platform.startswith("linux"):
+    from PyInstaller.depend import bindepend
+
+    def _toplevel(dest):
+        dest = dest.replace("\\", "/")
+        return "/" not in dest and ".so" in dest and not dest.startswith(("libpython", "libQt6", "libpyside6", "libshiboken6"))
+
+    _by_name = {os.path.basename(b[0]): b for b in a.binaries}
+    _todo = [b for b in a.binaries if not _toplevel(b[0])]
+    _needed = set()
+    while _todo:
+        _b = _todo.pop()
+        try:
+            _imports = bindepend.get_imports(_b[1])
+        except Exception:
+            continue
+        for _name, _ in _imports:
+            _dep = _by_name.get(_name)
+            if _dep and _toplevel(_dep[0]) and _dep[0] not in _needed:
+                _needed.add(_dep[0])
+                _todo.append(_dep)
+    _dropped = [b[0] for b in a.binaries if _toplevel(b[0]) and b[0] not in _needed]
+    a.binaries = [b for b in a.binaries if not _toplevel(b[0]) or b[0] in _needed]
+    print(f"{len(_dropped)} ungenutzte Systembibliotheken weggelassen")
+
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,

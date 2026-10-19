@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import unicodedata
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,13 +32,16 @@ DIALOG_REGION = (0.34, 0.40, 0.66, 0.52, 0.8, CENTER)
 
 SCREEN_REWARDS = "rewards"
 SCREEN_RELICS = "relics"
-# Relikt-Auswahl gibt es im Orbiter (REFINEMENT) und während Endlos-Missionen (SELECT RELIC)
+# Relikt-Auswahl gibt es im Orbiter (REFINEMENT) und während Endlos-Missionen (SELECT RELIC).
+# Jede Kopfzeile besteht aus zwei Teilen, die beide (unscharf) vorkommen müssen.
+# So zählt z. B. "VOID FISSURES" (Navigation) nicht als Belohnungsbildschirm.
 _HEADERS = [
-    (SCREEN_REWARDS, "VOIDFISSUREREWARDS"),
-    (SCREEN_RELICS, "VOIDRELICSREFINEMENT"),
-    (SCREEN_RELICS, "VOIDFISSURESELECTRELIC"),
+    (SCREEN_REWARDS, ("VOIDFISSURE", "REWARDS")),
+    (SCREEN_RELICS, ("VOIDRELICS", "REFINEMENT")),
+    (SCREEN_RELICS, ("VOIDFISSURE", "SELECTRELIC")),
 ]
-HEADER_CUTOFF = 0.85
+# Echte Kopfzeilen erreichen trotz OCR-Fehlern mindestens ~0,82, andere Bildschirme höchstens ~0,45
+HEADER_CUTOFF = 0.7
 
 MATCH_CUTOFF = 0.8
 
@@ -64,44 +68,30 @@ class RewardCard:
 
 
 class Recognizer:
-    """Hülle um RapidOCR. Das Modell wird erst beim ersten Gebrauch geladen."""
+    """Texterkennung (eigene Engine in ocr.py). Das Modell wird erst beim ersten Gebrauch geladen."""
 
     def __init__(self, threads: int = 1):
         self.threads = threads
-        self._ocr = None
+        self._engine = None
 
-    def _engine(self):
-        if self._ocr is None:
-            from rapidocr import RapidOCR
+    def _get(self):
+        if self._engine is None:
+            from .ocr import OcrEngine
 
-            self._ocr = RapidOCR(
-                params={
-                    "Global.log_level": "warning",
-                    "EngineConfig.onnxruntime.intra_op_num_threads": self.threads,
-                    # Kleine Ausschnitte nicht hochskalieren, große begrenzen
-                    "Det.limit_type": "max",
-                    "Det.limit_side_len": 1600,
-                }
-            )
-        return self._ocr
+            self._engine = OcrEngine(threads=self.threads)
+        return self._engine
 
     def read_line(self, img: np.ndarray) -> TextBox:
         """Liest eine einzelne Textzeile, ohne erst Text zu suchen (schnell)."""
-        result = self._engine()(img, use_det=False, use_cls=False)
-        text = result.txts[0] if result.txts else ""
-        score = float(result.scores[0]) if result.scores else 0.0
+        text, score = self._get().read_line(img)
         return TextBox(text.strip(), 0.0, 0.0, 1.0, 1.0, score)
 
     def read(self, img: np.ndarray) -> list[TextBox]:
-        result = self._engine()(img, use_det=True, use_cls=False, use_rec=True)
-        if result.boxes is None or not result.txts:
-            return []
         h, w = img.shape[:2]
-        boxes = []
-        for box, text, score in zip(result.boxes, result.txts, result.scores):
-            xs, ys = box[:, 0], box[:, 1]
-            boxes.append(TextBox(text.strip(), xs.min() / w, ys.min() / h, xs.max() / w, ys.max() / h, float(score)))
-        return boxes
+        return [
+            TextBox(line.text.strip(), line.box[0] / w, line.box[1] / h, line.box[2] / w, line.box[3] / h, line.score)
+            for line in self._get().read(img)
+        ]
 
 
 def ui_area(width: int, height: int) -> tuple[int, int, int, int]:
@@ -144,8 +134,13 @@ def crop(img: np.ndarray, region: tuple) -> np.ndarray:
 # --- Auswertung der gelesenen Texte (ohne OCR testbar) --------------------
 
 
+def _plain(text: str) -> str:
+    """Akzente entfernen, die die OCR manchmal liest (z. B. "FLAWLÉSS")."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
 def _squash(text: str) -> str:
-    return re.sub(r"[^A-Z0-9]", "", text.upper())
+    return re.sub(r"[^A-Z0-9]", "", _plain(text).upper())
 
 
 def _best_window_ratio(text: str, target: str) -> float:
@@ -160,7 +155,7 @@ def _best_window_ratio(text: str, target: str) -> float:
 def classify_header(boxes: list[TextBox]) -> str | None:
     """Welcher Bildschirm ist offen? SCREEN_REWARDS, SCREEN_RELICS oder None."""
     text = _squash(" ".join(b.text for b in boxes))
-    score, kind = max((_best_window_ratio(text, target), kind) for kind, target in _HEADERS)
+    score, kind = max((min(_best_window_ratio(text, part) for part in parts), kind) for kind, parts in _HEADERS)
     return kind if score >= HEADER_CUTOFF else None
 
 
@@ -180,7 +175,7 @@ _COST_TO_REFINEMENT = {25: "Exceptional", 50: "Flawless", 100: "Radiant"}
 def parse_equip_dialog(boxes: list[TextBox]) -> RelicEquipped | None:
     # Zeilen in Lesereihenfolge zusammenfügen, der Dialogtext kann umbrechen
     lines = sorted(boxes, key=lambda b: (round(b.y0, 2), b.x0))
-    text = " ".join(b.text for b in lines)
+    text = _plain(" ".join(b.text for b in lines))
     m = _DIALOG.search(text)
     if not m:
         return None

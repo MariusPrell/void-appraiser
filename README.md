@@ -12,6 +12,10 @@ Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/Mar
 - **Linux:** `warframe-helper-linux.tar.gz` entpacken, `warframe-helper/warframe-helper` starten.
 - Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay). Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9) wird unterstützt.
 
+## Stand (0.6.0)
+- **Kleinere Pakete:** Eigene, schlanke Texterkennung direkt auf der ONNX-Runtime statt RapidOCR und OpenCV (dieselben PaddleOCR-Modelle). Ungenutzte Qt-Teile und Systembibliotheken fliegen beim Bauen raus.
+- Kopfzeilen werden robuster erkannt (zwei Teile müssen passen, z. B. „VOID FISSURE“ und „REWARDS“).
+
 ## Stand (0.5.0)
 - **Tab „Overview“:** Tageszeiten (Plains of Eidolon, Orb Vallis, Cambion Drift, Zariman, Duviri), alle Void Fissures mit Filter für Normal, Steel Path und Void Storm sowie die Alerts, jeweils mit Restzeit. Quelle: Fan-API [api.warframestat.us](https://api.warframestat.us), Abruf jede Minute.
 - Die Relikt-Ansicht ist jetzt der Tab „Relikte“. Sie öffnet sich automatisch, sobald ein Ausrüsten-Dialog oder Belohnungsbildschirm erkannt wird.
@@ -75,4 +79,4 @@ Das Programm arbeitet nur passiv von außen, wie WFInfo:
 Es wird **nie**: Spielspeicher lesen, Spieldateien ändern, Eingaben ans Spiel senden oder automatisieren, Netzwerkverkehr des Spiels mitlesen. Änderungen, die gegen diese Regeln verstoßen, gehören nicht in dieses Projekt.
 
 ## Fremdlizenzen
-Die fertigen Pakete enthalten Bibliotheken anderer Projekte, u. a. Qt/PySide6 (LGPL-3.0), RapidOCR (Apache-2.0), ONNX Runtime (MIT), OpenCV (Apache-2.0), NumPy (BSD), Pillow (MIT-CMU), mss (MIT) und pynput (LGPL-3.0). Die vollständige Liste mit den Lizenztexten liegt jedem Paket als `THIRD-PARTY-LICENSES.txt` bei und wird beim Bauen erzeugt (`packaging/licenses.py`).
+Die fertigen Pakete enthalten Bibliotheken anderer Projekte, u. a. Qt/PySide6 (LGPL-3.0), ONNX Runtime (MIT), die PaddleOCR-Modelle (Apache-2.0, in `warframe_helper/models/`), NumPy (BSD), Pillow (MIT-CMU), mss (MIT) und pynput (LGPL-3.0). Die vollständige Liste mit den Lizenztexten liegt jedem Paket als `THIRD-PARTY-LICENSES.txt` bei und wird beim Bauen erzeugt (`packaging/licenses.py`).

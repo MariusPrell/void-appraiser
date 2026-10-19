@@ -36,6 +36,9 @@ def test_reward_header():
     assert is_reward_header([box("+ VOLD FISSURE/REWARDS", 0, 0)])
     assert is_reward_header([box("+VOID FISSIRE/REWAROS", 0, 0)])
     assert is_reward_header([box("+ VOID FISSURE/REWARD", 0, 0)])
+    # Echte Fehllesungen aus Scans
+    assert is_reward_header([box("VODFISSIREIREWAROS", 0, 0)])
+    assert is_reward_header([box("VOIDEISSIRE/REWAROS", 0, 0)])
     assert is_reward_header([box("VOID", 0, 0), box("FISSURE/", 0, 0), box("R", 0, 0), box("W", 0, 0), box("RDS", 0, 0)])
     assert not is_reward_header([box("VOID FISSURES", 0, 0)])
     assert not is_reward_header([box("NAVIGATION", 0, 0)])
@@ -62,6 +65,8 @@ def test_dialog():
     refine = "Are you sure you want to refine and equip Meso S8 Relic? It will cost 50 Void Traces"
     assert parse_equip_dialog([box(refine, 0, 0)]) == RelicEquipped("Meso", "S8", "Flawless")
     assert parse_equip_dialog([box("SKIP CINEMATIC?", 0, 0)]) is None
+    lines = [box("Are you sure you want to equip Meso V15 Relic", 0.1, 0.2), box("[FLAWLÉSS] for this mission?", 0.1, 0.5)]
+    assert parse_equip_dialog(lines) == RelicEquipped("Meso", "V15", "Flawless")
 
 
 def test_matcher_tolerates_ocr_errors():

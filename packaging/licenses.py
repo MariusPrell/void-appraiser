@@ -69,6 +69,12 @@ def render(dists: list) -> str:
         "Python selbst steht unter der Python Software Foundation License (https://docs.python.org/3/license.html).",
         "",
     ]
+    # OCR-Modelle (PaddleOCR, Apache-2.0) liegen als Dateien bei, nicht als Python-Paket
+    models = Path(__file__).parent.parent / "warframe_helper" / "models"
+    for name in ("README.md", "MODEL_LICENSES.md", "LICENSE-Apache-2.0.txt"):
+        path = models / name
+        if path.is_file():
+            out += ["-" * 60, f"OCR-Modelle: {name}", "", path.read_text(encoding="utf-8").strip(), ""]
     for dist in dists:
         meta = dist.metadata
         license_name = meta.get("License-Expression") or ""
