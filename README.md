@@ -1,94 +1,63 @@
 # Void Appraiser
 
-*(bis Version 0.7 „Warframe Helper“)*
+Zeigt dir in Warframe auf einen Blick, was deine Void-Relikte und Prime-Teile wert sind: direkt über dem Spiel und in einem eigenen Fenster. Für Windows und Linux.
 
-Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](https://warframe.market), Relikt-Inhalte von [drops.warframestat.us](https://drops.warframestat.us).
+> Kein offizielles Produkt, nicht mit Digital Extremes verbunden. Warframe ist eine Marke von Digital Extremes Ltd.
 
-> **Hinweis:** Kein offizielles Produkt, nicht mit Digital Extremes verbunden. Warframe ist eine Marke von Digital Extremes Ltd.
+## Was es kann
 
-Mit Hilfe von Claude (Anthropic) entwickelt. Lizenz: [MIT](LICENSE).
+- **Preise auf dem Belohnungsbildschirm:** Am Ende einer Fissure stehen Platin und Ducats unter jeder Karte, das wertvollste Teil ist grün markiert.
+- **Relikt-Vorschau:** Beim Ausrüsten eines Relikts siehst du alle möglichen Teile mit Chance, Preis und dem Durchschnittswert pro Öffnung.
+- **Inventar:** Unter Inventar → Prime Parts liest es deine Teile samt Anzahl ein und zeigt **Ducats pro Platin**. So siehst du, was du besser bei Baro Ki'Teer abgibst und was du verkaufen solltest.
+- **Overview:** Tageszeiten der offenen Welten, alle Void Fissures (Normal, Steel Path, Void Storm) und Alerts mit Restzeit.
+- **Drop-Suche:** Wo gibt es ein Teil? Suche in den offiziellen Drop-Tabellen, z. B. „Gauss Neuroptics“.
 
-## Herunterladen
-Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/MariusPrell/void-appraiser/releases/latest).
-- **Windows:** `void-appraiser-windows.zip` entpacken, `void-appraiser.exe` im Ordner `void-appraiser` starten. Beim ersten Start warnt Windows eventuell („Windows hat den PC geschützt“), weil das Programm nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
-- **Linux:** `void-appraiser-linux.tar.gz` entpacken, `void-appraiser/void-appraiser` starten.
-- Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay). Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9) wird unterstützt.
+Preise kommen von [warframe.market](https://warframe.market), Drop-Daten und Spielzustand von [warframestat.us](https://warframestat.us).
 
-## Stand (0.8.0)
-- Neuer Name: **Void Appraiser** (vorher „Warframe Helper“, den Namen nutzen schon andere Projekte). Einstellungen, Inventarliste und Cache werden beim ersten Start automatisch übernommen.
+## Installation
 
-## Stand (0.7.0)
-- **Tab „Inventar“:** Im Spiel Inventar → Prime Parts öffnen. Oben erscheint ein roter Hinweis. Taste (Standard Einfg) drücken: Alle sichtbaren Teile samt Anzahl werden eingelesen. Scrollen und erneut drücken ergänzt die Liste.
-- Pro Teil: Platin, Ducats, **Ducats pro Platin** sowie Summen. Ab etwa 10 Ducats pro Platin (grün) lohnt sich Baro Ki'Teer, darunter eher der Verkauf an Spieler.
-- Gebaute Warframe-Teile (z. B. „Citrine Prime Chassis“) werden erkannt und als nicht handelbar markiert. Die Anzahl lässt sich per Doppelklick korrigieren.
-- Die Liste bleibt gespeichert (`~/.cache/void-appraiser/inventory.json` bzw. `%LOCALAPPDATA%\void-appraiser\inventory.json`).
-- **Tab „Drop-Suche“:** Suche in den offiziellen Drop-Tabellen von Digital Extremes (über drops.warframestat.us), z. B. „Gauss Neuroptics“. Optional auch im Fundort suchen (was gibt es in „Apollodorus“?). Doppelklick auf ein Relikt zeigt dessen Inhalt und Wert.
+Lade das passende Paket aus dem **[neuesten Release](https://github.com/MariusPrell/void-appraiser/releases/latest)** herunter. Python musst du nicht installieren.
 
-## Stand (0.6.0)
-- **Kleinere Pakete:** Eigene, schlanke Texterkennung direkt auf der ONNX-Runtime statt RapidOCR und OpenCV (dieselben PaddleOCR-Modelle). Ungenutzte Qt-Teile und Systembibliotheken fliegen beim Bauen raus.
-- Kopfzeilen werden robuster erkannt (zwei Teile müssen passen, z. B. „VOID FISSURE“ und „REWARDS“).
+**Windows**
+1. `void-appraiser-windows.zip` entpacken.
+2. Im Ordner `void-appraiser` die Datei `void-appraiser.exe` starten.
+3. Falls Windows warnt („Windows hat den PC geschützt“): „Weitere Informationen“ → „Trotzdem ausführen“. Das Programm ist nicht signiert.
 
-## Stand (0.5.0)
-- **Tab „Overview“:** Tageszeiten (Plains of Eidolon, Orb Vallis, Cambion Drift, Zariman, Duviri), alle Void Fissures mit Filter für Normal, Steel Path und Void Storm sowie die Alerts, jeweils mit Restzeit. Quelle: Fan-API [api.warframestat.us](https://api.warframestat.us), Abruf jede Minute.
-- Die Relikt-Ansicht ist jetzt der Tab „Relikte“. Sie öffnet sich automatisch, sobald ein Ausrüsten-Dialog oder Belohnungsbildschirm erkannt wird.
-
-## Stand (0.4.0)
-- Fertige Pakete für Windows und Linux, gebaut von GitHub Actions.
-
-## Stand (0.3.0, Stufe 3)
-- **Overlay über dem Spiel:** Unter jeder Belohnungskarte stehen Platin und Ducats, das wertvollste Teil ist grün markiert. Beim Ausrüsten-Dialog erscheint eine Kurzinfo (Dauer einstellbar, Standard 5 s) zum Relikt (Erwartungswert, bestes Teil). In den Einstellungen abschaltbar.
-- Das Overlay lässt Klicks durch und nimmt dem Spiel nicht den Fokus.
-- Hyprland: Platzierung per `hyprctl dispatch` (Lua-Syntax ab 0.55, klassische Syntax ungetestet). Im Leerlauf parkt das Overlay als 1×1-Pixel-Fenster auf einem anderen Monitor, damit das Spiel Direct Scanout behält.
-- Windows: rahmenloses Fenster im Vordergrund. Warframe muss dafür im Modus „Randloses Vollbild“ oder „Fenster“ laufen, nicht im exklusiven Vollbild (ungetestet).
-
-## Stand (0.2.0, Stufe 2)
-- **Bildschirmerkennung:** Alle 1,5 s (einstellbar, abschaltbar) wird geprüft, ob der Belohnungsbildschirm oder der Ausrüsten-Dialog zu sehen ist. Das geht nur, solange Warframe im Vordergrund ist. Die Teile zur Auswahl erscheinen oben mit Preis, das wertvollste ist markiert.
-- **Manueller Scan:** per Taste (einstellbar, Standard: Einfg) oder mit dem Knopf „Jetzt scannen“.
-- Texterkennung mit RapidOCR, läuft lokal und braucht keine Installation im System.
-- Linux: Hyprland (grim, hyprctl) oder X11. Windows: mss und die Win32-API.
-- Einstellungen unter Datei → Einstellungen. Zur Fehlersuche werden erkannte Bildschirme in `~/.cache/void-appraiser/scans` gespeichert (abschaltbar).
-
-## Stand (0.1.0, Stufe 1)
-- Liest das Warframe-Log (`EE.log`) mit und erkennt das ausgerüstete Relikt samt Veredelung.
-- Zeigt die möglichen Teile mit Chance, Platin (Median der 5 günstigsten Angebote von Spielern, die online sind), günstigstem Angebot und Ducats sowie den Erwartungswert pro Öffnung.
-- Erkennt, wann der Belohnungsbildschirm offen ist (Grundlage für die OCR in Stufe 2).
-- Relikte lassen sich auch von Hand suchen.
-- Nur mit englischem Spielclient (das Log ist sprachabhängig).
-
-## Pakete bauen (Stufe 4)
-Fertige Programme ohne Python-Installation, gebaut mit PyInstaller (`packaging/void-appraiser.spec`):
+**Linux**
 ```bash
-.venv/bin/pip install pyinstaller
-.venv/bin/pyinstaller packaging/void-appraiser.spec --noconfirm --distpath build/dist --workpath build/work
-build/dist/void-appraiser/void-appraiser --selftest tests/fixtures/belohnung-3-karten.png
+tar -xzf void-appraiser-linux.tar.gz
+./void-appraiser/void-appraiser
 ```
-Windows-Pakete baut GitHub Actions (`.github/workflows/build.yml`): bei einem Tag `v*` oder von Hand. Ergebnis: `void-appraiser-windows.zip` und `void-appraiser-linux.tar.gz` (gepackt etwa 200 MB).
+Unterstützt werden Hyprland und X11. Unter Hyprland wird `grim` für Bildschirmfotos gebraucht.
 
-`--selftest BILD` prüft die Texterkennung auf einem Bildschirmfoto ohne Fenster. Die Testbilder in `tests/fixtures/` enthalten nur Kopfzeile, Kartennamen und Dialogtext, keine Spielernamen.
+**Voraussetzungen im Spiel**
+- Sprache **Englisch**
+- Anzeigemodus **randloses Vollbild** oder Fenster, damit das Overlay sichtbar ist
+- Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9)
 
-## Starten
+## Bedienung
+
+- Das Programm erkennt Belohnungsbildschirm, Ausrüsten-Dialog und Inventar automatisch, solange Warframe im Vordergrund ist.
+- **Einfg** löst einen Scan von Hand aus, im Inventar liest es damit die Teile ein. Danach scrollen und erneut drücken, die Liste wird ergänzt.
+- Unter **Datei → Einstellungen** stellst du Taste, Scan-Abstand, Overlay und Bildschirm ein.
+
+## Sicherheit
+
+Void Appraiser arbeitet nur von außen, wie WFInfo. Es liest das Log `EE.log`, das Warframe ohnehin schreibt, macht Bildschirmfotos und fragt öffentliche Webseiten ab. Es liest **nie** den Spielspeicher, ändert **nie** Spieldateien und sendet **nie** Eingaben ans Spiel. Eine Garantie gegen Banns gibt es bei Fremdprogrammen trotzdem nicht.
+
+## Entwicklung
+
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e .          # Windows: .venv\Scripts\pip install -e .
-.venv/bin/void-appraiser           # optional: --log /pfad/zu/EE.log
+.venv/bin/pip install -e . pytest pyinstaller
+.venv/bin/void-appraiser            # starten
+.venv/bin/python -m pytest          # Tests
+.venv/bin/pyinstaller packaging/void-appraiser.spec --noconfirm   # Paket bauen
 ```
-Das Log wird automatisch gesucht: unter Windows in `%LOCALAPPDATA%\Warframe\EE.log`, unter Linux in allen Steam-Bibliotheken (Proton-Prefix 230410).
+Die Pakete für Windows und Linux baut GitHub Actions bei jedem Versions-Tag (`v*`). Was sich je Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) und bei den Releases.
 
-Cache: `~/.cache/void-appraiser` bzw. `%LOCALAPPDATA%\void-appraiser`.
+## Lizenz
 
-## Tests
-```bash
-.venv/bin/pip install pytest && .venv/bin/python -m pytest
-```
+[MIT](LICENSE). Die Pakete enthalten Software anderer Projekte, u. a. Qt (LGPL-3.0), ONNX Runtime (MIT) und die PaddleOCR-Modelle (Apache-2.0). Alle Lizenztexte liegen jedem Paket in `THIRD-PARTY-LICENSES.txt` bei.
 
-## Grundsätze (Bann-Sicherheit)
-Das Programm arbeitet nur passiv von außen, wie WFInfo:
-- liest nur die Textdatei `EE.log`, die das Spiel ohnehin schreibt
-- macht nur Bildschirmfotos (wie ein Streaming-Programm)
-- hört auf eine Taste für den manuellen Scan, sendet aber nie Tasten
-- fragt öffentliche Web-APIs ab
-
-Es wird **nie**: Spielspeicher lesen, Spieldateien ändern, Eingaben ans Spiel senden oder automatisieren, Netzwerkverkehr des Spiels mitlesen. Änderungen, die gegen diese Regeln verstoßen, gehören nicht in dieses Projekt.
-
-## Fremdlizenzen
-Die fertigen Pakete enthalten Bibliotheken anderer Projekte, u. a. Qt/PySide6 (LGPL-3.0), ONNX Runtime (MIT), die PaddleOCR-Modelle (Apache-2.0, in `void_appraiser/models/`), NumPy (BSD), Pillow (MIT-CMU), mss (MIT) und pynput (LGPL-3.0). Die vollständige Liste mit den Lizenztexten liegt jedem Paket als `THIRD-PARTY-LICENSES.txt` bei und wird beim Bauen erzeugt (`packaging/licenses.py`).
+Mit Hilfe von Claude (Anthropic) entwickelt. Bis Version 0.7 hieß das Projekt „Warframe Helper“.

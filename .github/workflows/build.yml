@@ -1,7 +1,7 @@
 # Baut die Pakete für Windows und Linux.
 # Startet bei einem Versions-Tag (z. B. v0.4.0) oder von Hand unter "Actions".
 # Die fertigen Pakete stehen danach unter Actions -> Lauf -> Artifacts
-# und bei einem Tag zusätzlich als Release (privat, nur für Repo-Mitglieder sichtbar).
+# und bei einem Tag zusätzlich als Release mit dem passenden Abschnitt aus CHANGELOG.md.
 name: Build
 
 on:
@@ -68,8 +68,14 @@ jobs:
           name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}
 
+      - name: Release-Text aus CHANGELOG.md
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: python packaging/release_notes.py "${GITHUB_REF_NAME}" > release-notes.md
+
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.archive }}
+          body_path: release-notes.md
