@@ -106,3 +106,44 @@ def test_real_screenshot():
     assert is_reward_header([rec.read_line(crop(frame, HEADER_LINE))])
     cards = match_reward_cards(rec.read(crop(frame, CARDS_REGION)), NameMatcher(NAMES))
     assert [c.name for c in cards] == ["Lex Prime Receiver"]
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(scope="module")
+def recognizer():
+    from warframe_helper.recognize import Recognizer
+
+    return Recognizer()
+
+
+def _frame(name):
+    from PIL import Image
+
+    return np.asarray(Image.open(FIXTURES / name).convert("RGB"))
+
+
+def test_fixture_three_cards(recognizer):
+    from warframe_helper.recognize import CARDS_REGION, HEADER_LINE, crop
+
+    frame = _frame("belohnung-3-karten.png")
+    assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_REWARDS
+    names = ["Zylok Prime Barrel", "Caliban Prime Chassis Blueprint", "Kogake Prime Boot", "Caliban Prime Blueprint"]
+    cards = match_reward_cards(recognizer.read(crop(frame, CARDS_REGION)), NameMatcher(names))
+    assert [c.name for c in cards] == names[:3]
+
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("dialog-axi-z2-radiant.png", RelicEquipped("Axi", "Z2", "Radiant")),
+        ("dialog-axi-a17-intact.png", RelicEquipped("Axi", "A17", "Intact")),
+    ],
+)
+def test_fixture_dialog(recognizer, name, expected):
+    from warframe_helper.recognize import DIALOG_REGION, HEADER_LINE, crop
+
+    frame = _frame(name)
+    assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_RELICS
+    assert parse_equip_dialog(recognizer.read(crop(frame, DIALOG_REGION))) == expected

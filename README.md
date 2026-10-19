@@ -22,6 +22,17 @@ Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](
 - Relikte lassen sich auch von Hand suchen.
 - Nur mit englischem Spielclient (das Log ist sprachabhängig).
 
+## Pakete bauen (Stufe 4)
+Fertige Programme ohne Python-Installation, gebaut mit PyInstaller (`packaging/warframe-helper.spec`):
+```bash
+.venv/bin/pip install pyinstaller
+.venv/bin/pyinstaller packaging/warframe-helper.spec --noconfirm --distpath build/dist --workpath build/work
+build/dist/warframe-helper/warframe-helper --selftest tests/fixtures/belohnung-3-karten.png
+```
+Windows-Pakete baut GitHub Actions (`.github/workflows/build.yml`): bei einem Tag `v*` oder von Hand. Ergebnis: `warframe-helper-windows.zip` und `warframe-helper-linux.tar.gz` (gepackt etwa 200 MB).
+
+`--selftest BILD` prüft die Texterkennung auf einem Bildschirmfoto ohne Fenster. Die Testbilder in `tests/fixtures/` enthalten nur Kopfzeile, Kartennamen und Dialogtext, keine Spielernamen.
+
 ## Starten
 ```bash
 python3 -m venv .venv
