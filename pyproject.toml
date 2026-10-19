@@ -1,6 +1,6 @@
 [project]
 name = "warframe-helper"
-version = "0.4.2"
+version = "0.4.3"
 description = "Zeigt den Platin-Wert von Void-Relikt-Belohnungen (warframe.market)"
 license = "MIT"
 license-files = ["LICENSE"]

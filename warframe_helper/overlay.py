@@ -22,8 +22,9 @@ from PySide6.QtWidgets import QApplication, QWidget
 from . import capture, hypr
 
 # Bereiche relativ zur 16:9-Fläche des Spiels (x0, y0, x1, y1)
-REWARDS_AREA = (0.08, 0.525, 0.92, 0.59)  # unter den Spielernamen der Karten (bis zu 2 Zeilen)
-RELIC_AREA = (0.30, 0.625, 0.70, 0.70)  # unter dem Ausrüsten-Dialog
+# Gleiche Schreibweise wie in recognize.py: (x0, y0, x1, y1, Skalierung, Anker)
+REWARDS_AREA = (0.08, 0.525, 0.92, 0.59, 1.0, "center")  # unter den Spielernamen der Karten (bis zu 2 Zeilen)
+RELIC_AREA = (0.30, 0.625, 0.70, 0.70, 1.0, "center")  # unter dem Ausrüsten-Dialog
 
 BG = QColor(12, 18, 28, 225)
 BEST_BG = QColor(45, 106, 79, 240)
@@ -97,9 +98,7 @@ class OverlayPanel(QWidget):
 
 
 def _game_area(monitor_name: str) -> tuple[capture.Rect, str | None]:
-    """16:9-Fläche des Spiels in Bildschirmkoordinaten und der Monitorname (Hyprland)."""
-    from .recognize import ui_area
-
+    """Fläche des Spiels in Bildschirmkoordinaten und der Monitorname (Hyprland)."""
     be = capture.backend()
     rect = None
     monitor = None
@@ -116,12 +115,11 @@ def _game_area(monitor_name: str) -> tuple[capture.Rect, str | None]:
     if rect is None:
         screen = QApplication.primaryScreen().geometry()
         rect = capture.Rect(screen.x(), screen.y(), screen.width(), screen.height())
-    ax, ay, aw, ah = ui_area(rect.w, rect.h)
     if sys.platform == "win32":
         # Win32 liefert physische Pixel, Qt arbeitet mit logischen
         ratio = QApplication.primaryScreen().devicePixelRatio()
-        return capture.Rect(int((rect.x + ax) / ratio), int((rect.y + ay) / ratio), int(aw / ratio), int(ah / ratio)), None
-    return capture.Rect(rect.x + ax, rect.y + ay, aw, ah), monitor
+        return capture.Rect(int(rect.x / ratio), int(rect.y / ratio), int(rect.w / ratio), int(rect.h / ratio)), None
+    return rect, monitor
 
 
 class OverlayManager:
@@ -173,13 +171,12 @@ class OverlayManager:
 
     # --- Anzeigen und Verstecken ------------------------------------------
 
-    def _show(self, panel: OverlayPanel, area: tuple[float, float, float, float]) -> None:
+    def _show(self, panel: OverlayPanel, area: tuple) -> None:
+        from .recognize import region_rect
+
         game, monitor = _game_area(self.monitor_name)
-        x0, y0, x1, y1 = area
-        x = game.x + int(x0 * game.w)
-        y = game.y + int(y0 * game.h)
-        w = int((x1 - x0) * game.w)
-        h = int((y1 - y0) * game.h)
+        rx, ry, w, h = region_rect(game.w, game.h, area)
+        x, y = game.x + rx, game.y + ry
         if self.use_hypr:
             address = self._addresses.get(panel)
             if address and monitor:

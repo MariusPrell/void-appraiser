@@ -150,3 +150,39 @@ def test_fixture_dialog(recognizer, name, expected):
     frame = _frame(name)
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_RELICS
     assert parse_equip_dialog(recognizer.read(crop(frame, DIALOG_REGION))) == expected
+
+
+def _widen(frame, width):
+    """Macht aus einem 16:9-Bild ein breiteres, so wie Warframe die Oberfläche anordnet:
+    Kopfzeile bleibt am linken Rand, alles andere wandert in die Mitte."""
+    h, w = frame.shape[:2]
+    out = np.zeros((h, width, 3), dtype=np.uint8)
+    shift = (width - w) // 2
+    header_h = int(0.1 * h)
+    out[header_h:, shift : shift + w] = frame[header_h:]
+    out[:header_h, :w] = frame[:header_h]
+    return out
+
+
+@pytest.mark.parametrize("width", [3440, 5120])  # 21:9 (UWQHD) und 32:9 bei 1440 px Höhe
+def test_ultrawide(recognizer, width):
+    from warframe_helper.recognize import CARDS_REGION, DIALOG_REGION, HEADER_LINE, crop
+
+    frame = _widen(_frame("belohnung-3-karten.png"), width)
+    assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_REWARDS
+    names = ["Zylok Prime Barrel", "Caliban Prime Chassis Blueprint", "Kogake Prime Boot"]
+    assert [c.name for c in match_reward_cards(recognizer.read(crop(frame, CARDS_REGION)), NameMatcher(names))] == names
+
+    frame = _widen(_frame("dialog-axi-z2-radiant.png"), width)
+    assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_RELICS
+    assert parse_equip_dialog(recognizer.read(crop(frame, DIALOG_REGION))) == RelicEquipped("Axi", "Z2", "Radiant")
+
+
+def test_region_anchors():
+    from warframe_helper.recognize import CENTER, LEFT, region_rect
+
+    region = (0.0, 0.0, 0.5, 0.5, 1.0, LEFT)
+    assert region_rect(2560, 1440, region) == (0, 0, 1280, 720)
+    assert region_rect(5120, 1440, region) == (0, 0, 1280, 720)  # bleibt am linken Rand
+    centered = (0.25, 0.0, 0.75, 0.5, 1.0, CENTER)
+    assert region_rect(5120, 1440, centered) == (1920, 0, 1280, 720)  # mittig: (5120 - 2560) / 2 + 640

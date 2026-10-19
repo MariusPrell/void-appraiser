@@ -15,14 +15,19 @@ import numpy as np
 
 from .logwatch import RelicEquipped
 
-# (x0, y0, x1, y1, Skalierung) relativ zur 16:9-Fläche
+# Bereiche: (x0, y0, x1, y1, Skalierung, Anker)
+# Warframe skaliert die Oberfläche nach der Bildhöhe. Auf breiteren Bildschirmen
+# (21:9, 32:9) bleibt sie nicht als 16:9-Block in der Mitte, sondern hängt an
+# den Rändern: die Kopfzeile links, Dialog und Karten mittig. Deshalb sind die
+# x-Werte Anteile einer gedachten 16:9-Fläche in Bildhöhe, die am Anker liegt.
+LEFT, CENTER, RIGHT = "left", "center", "right"
 # Kopfzeile oben links, z. B. "VOID FISSURE/REWARDS" oder "VOID RELICS/REFINEMENT".
 # Nur Zeilenerkennung ohne Textsuche, sehr billig. Breit, weil Trupp-Symbole
 # davor den Text nach rechts schieben.
-HEADER_LINE = (0.04, 0.02, 0.52, 0.075, 0.5)
-CARDS_REGION = (0.08, 0.36, 0.92, 0.465, 1.0)
+HEADER_LINE = (0.04, 0.02, 0.52, 0.075, 0.5, LEFT)
+CARDS_REGION = (0.08, 0.36, 0.92, 0.465, 1.0, CENTER)
 # Text des Ausrüsten-Dialogs in der Bildmitte
-DIALOG_REGION = (0.34, 0.40, 0.66, 0.52, 0.8)
+DIALOG_REGION = (0.34, 0.40, 0.66, 0.52, 0.8, CENTER)
 
 SCREEN_REWARDS = "rewards"
 SCREEN_RELICS = "relics"
@@ -100,7 +105,8 @@ class Recognizer:
 
 
 def ui_area(width: int, height: int) -> tuple[int, int, int, int]:
-    """16:9-Fläche (x, y, b, h) innerhalb eines Bildes."""
+    """Mittige 16:9-Fläche (x, y, b, h) in Bildhöhe. Bei schmaleren Bildern (16:10)
+    in Bildbreite und vertikal mittig."""
     if width / height > 16 / 9 + 0.01:
         w = round(height * 16 / 9)
         return ((width - w) // 2, 0, w, height)
@@ -110,10 +116,23 @@ def ui_area(width: int, height: int) -> tuple[int, int, int, int]:
     return (0, 0, width, height)
 
 
-def crop(img: np.ndarray, region: tuple[float, float, float, float, float]) -> np.ndarray:
-    x0, y0, x1, y1, scale = region
-    ax, ay, aw, ah = ui_area(img.shape[1], img.shape[0])
-    part = img[ay + int(y0 * ah) : ay + int(y1 * ah), ax + int(x0 * aw) : ax + int(x1 * aw)]
+def region_rect(width: int, height: int, region: tuple) -> tuple[int, int, int, int]:
+    """Bereich (x, y, b, h) in Pixeln für ein Bild der Größe width × height."""
+    x0, y0, x1, y1 = region[:4]
+    anchor = region[5] if len(region) > 5 else CENTER
+    ax, ay, aw, ah = ui_area(width, height)
+    if anchor == LEFT:
+        ax = 0
+    elif anchor == RIGHT:
+        ax = width - aw
+    x, y = ax + int(x0 * aw), ay + int(y0 * ah)
+    return x, y, ax + int(x1 * aw) - x, ay + int(y1 * ah) - y
+
+
+def crop(img: np.ndarray, region: tuple) -> np.ndarray:
+    scale = region[4]
+    x, y, w, h = region_rect(img.shape[1], img.shape[0], region)
+    part = img[y : y + h, x : x + w]
     if scale != 1.0:
         from PIL import Image
 

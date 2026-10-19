@@ -10,7 +10,7 @@ Mit Hilfe von Claude (Anthropic) entwickelt. Lizenz: [MIT](LICENSE).
 Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/MariusPrell/warframe-helper/releases/latest).
 - **Windows:** `warframe-helper-windows.zip` entpacken, `warframe-helper.exe` im Ordner `warframe-helper` starten. Beim ersten Start warnt Windows eventuell („Windows hat den PC geschützt“), weil das Programm nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
 - **Linux:** `warframe-helper-linux.tar.gz` entpacken, `warframe-helper/warframe-helper` starten.
-- Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay).
+- Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay). Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9) wird unterstützt.
 
 ## Stand (0.4.0)
 - Fertige Pakete für Windows und Linux, gebaut von GitHub Actions.
