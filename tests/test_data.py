@@ -58,3 +58,28 @@ def test_price_without_offers():
 def test_expected_value():
     rewards = [Reward("A", "Rare", 10), Reward("B", "Common", 90)]
     assert expected_value(rewards, {"A": 100, "B": None}) == 10
+
+
+def test_price_retries_after_errors(monkeypatch, tmp_path):
+    import urllib.error
+
+    from warframe_helper import data
+
+    monkeypatch.setattr(data, "cache_dir", lambda: tmp_path)
+    monkeypatch.setattr(data.time, "sleep", lambda s: None)
+    items = {"data": [{"slug": "lex_prime_receiver", "ducats": 15, "i18n": {"en": {"name": "Lex Prime Receiver"}}}]}
+    calls = []
+
+    def fake_http(url, timeout=20):
+        if url.endswith("/items"):
+            return items
+        calls.append(url)
+        if len(calls) < 3:
+            raise urllib.error.HTTPError(url, 429, "Too Many Requests", None, None)
+        return {"data": {"sell": [_order(7), _order(9)]}}
+
+    monkeypatch.setattr(data, "_http_json", fake_http)
+    market = data.Market()
+    price = market.price("Lex Prime Receiver")
+    assert len(calls) == 3
+    assert price.median == 8

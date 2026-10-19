@@ -453,6 +453,10 @@ class MainWindow(QMainWindow):
             self.prices[name] = price
         self._fill_tables()
 
+    def _prices_missing(self, names) -> bool:
+        """Fehlen noch Preise für handelbare Teile (lädt noch oder Abruf gescheitert)?"""
+        return bool(self.market) and any(self.market.item(n) and self.prices.get(n) is None for n in names)
+
     def _value(self, name: str) -> float | None:
         price = self.prices.get(name)
         return price.value if price else None
@@ -486,6 +490,8 @@ class MainWindow(QMainWindow):
             best = max(self.rewards, key=lambda r: values.get(r.name) or 0)
             ev = expected_value(self.rewards, values)
             second = f"Ø {_fmt_num(ev, 1)} Platin pro Öffnung"
+            if self._prices_missing(r.name for r in self.rewards):
+                second = "Preise werden geladen …"
             if values.get(best.name):
                 second += f"  ·  Top: {best.name.replace(' Blueprint', ' BP')} ({_fmt_num(values[best.name])} P)"
             remaining = self.overlay_relic_until - time.monotonic()
@@ -546,6 +552,8 @@ class MainWindow(QMainWindow):
         best = max(self.rewards, key=lambda r: values.get(r.name) or 0)
         ev = expected_value(self.rewards, values)
         text = f"Erwartungswert: <b>{_fmt_num(ev, 1)} Platin</b> pro Öffnung"
+        if self._prices_missing(r.name for r in self.rewards):
+            text += " (noch nicht alle Preise geladen)"
         if values.get(best.name):
             text += f" · wertvollstes Teil: <b>{best.name}</b> ({_fmt_num(values[best.name])} Platin)"
         self.summary.setText(text)

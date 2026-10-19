@@ -21,8 +21,9 @@ USER_AGENT = f"warframe-helper/{__version__}"
 RELIC_DATA_MAX_AGE = 24 * 3600
 ITEM_LIST_MAX_AGE = 24 * 3600
 PRICE_MAX_AGE = 3600
-# warframe.market erlaubt etwa 3 Anfragen pro Sekunde
-MARKET_MIN_INTERVAL = 0.35
+# warframe.market erlaubt etwa 3 Anfragen pro Sekunde, wir bleiben deutlich darunter
+MARKET_MIN_INTERVAL = 0.5
+MARKET_RETRIES = 3  # bei Fehlern (z. B. 429 "zu viele Anfragen") mit wachsender Pause
 
 TIERS = ("Lith", "Meso", "Neo", "Axi", "Requiem")
 REFINEMENTS = ("Intact", "Exceptional", "Flawless", "Radiant")
@@ -178,20 +179,24 @@ class Market:
         cached = self.cached_price(name)
         if cached and not force and time.time() - cached.fetched < PRICE_MAX_AGE:
             return cached
-        with self._lock:
-            wait = self._last_request + MARKET_MIN_INTERVAL - time.monotonic()
-            if wait > 0:
-                time.sleep(wait)
-            try:
-                data = _http_json(f"{MARKET_API}/orders/item/{slug}/top")
-            except (urllib.error.URLError, TimeoutError, ValueError):
-                return cached
-            finally:
-                self._last_request = time.monotonic()
-            price = price_from_orders(data.get("data", {}).get("sell", []))
-            self._prices[slug] = price.__dict__
-            self._save_prices()
-        return price
+        for attempt in range(MARKET_RETRIES):
+            if attempt:
+                time.sleep(1.5 * attempt)  # außerhalb der Sperre, andere Anfragen laufen weiter
+            with self._lock:
+                wait = self._last_request + MARKET_MIN_INTERVAL - time.monotonic()
+                if wait > 0:
+                    time.sleep(wait)
+                try:
+                    data = _http_json(f"{MARKET_API}/orders/item/{slug}/top")
+                except (urllib.error.URLError, TimeoutError, ValueError):
+                    continue
+                finally:
+                    self._last_request = time.monotonic()
+                price = price_from_orders(data.get("data", {}).get("sell", []))
+                self._prices[slug] = price.__dict__
+                self._save_prices()
+            return price
+        return cached
 
     def _save_prices(self) -> None:
         tmp = self._cache_path.with_suffix(".tmp")
