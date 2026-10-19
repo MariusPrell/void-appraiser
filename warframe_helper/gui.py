@@ -389,12 +389,16 @@ class MainWindow(QMainWindow):
             self.choice_title.setText("Belohnungsauswahl")
             self._fetch_prices(self.choices)
             self.raise_()
-        elif isinstance(event, (RewardsGone, RewardScreenClosed)):
+        elif isinstance(event, RewardsGone):
             if self.choices:
                 self.choice_title.setText("Letzte Belohnungsauswahl")
             self.choice_x = []
             if self.overlay:
                 self.overlay.hide_rewards()
+        elif isinstance(event, RewardScreenClosed):
+            # Das Log kommt oft verspätet; das Overlay steuert allein die Bildschirmerkennung
+            if self.choices:
+                self.choice_title.setText("Letzte Belohnungsauswahl")
         elif isinstance(event, RewardScreenOpened):
             # Das Log kommt oft verspätet, der Bildschirm-Scan ist schneller
             self._scan_now()

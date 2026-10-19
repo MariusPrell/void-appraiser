@@ -26,7 +26,12 @@ DIALOG_REGION = (0.34, 0.40, 0.66, 0.52, 0.8)
 
 SCREEN_REWARDS = "rewards"
 SCREEN_RELICS = "relics"
-_HEADERS = {SCREEN_REWARDS: "VOIDFISSUREREWARDS", SCREEN_RELICS: "VOIDRELICSREFINEMENT"}
+# Relikt-Auswahl gibt es im Orbiter (REFINEMENT) und während Endlos-Missionen (SELECT RELIC)
+_HEADERS = [
+    (SCREEN_REWARDS, "VOIDFISSUREREWARDS"),
+    (SCREEN_RELICS, "VOIDRELICSREFINEMENT"),
+    (SCREEN_RELICS, "VOIDFISSURESELECTRELIC"),
+]
 HEADER_CUTOFF = 0.85
 
 MATCH_CUTOFF = 0.8
@@ -136,8 +141,7 @@ def _best_window_ratio(text: str, target: str) -> float:
 def classify_header(boxes: list[TextBox]) -> str | None:
     """Welcher Bildschirm ist offen? SCREEN_REWARDS, SCREEN_RELICS oder None."""
     text = _squash(" ".join(b.text for b in boxes))
-    scores = {kind: _best_window_ratio(text, target) for kind, target in _HEADERS.items()}
-    kind, score = max(scores.items(), key=lambda kv: kv[1])
+    score, kind = max((_best_window_ratio(text, target), kind) for kind, target in _HEADERS)
     return kind if score >= HEADER_CUTOFF else None
 
 

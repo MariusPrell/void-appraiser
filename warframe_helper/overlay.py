@@ -55,6 +55,8 @@ class OverlayPanel(QWidget):
         self.full_width = False  # ein breites Feld statt einzelner Kästen
 
     def set_items(self, items: list[Item], full_width: bool = False) -> None:
+        if items == self.items and full_width == self.full_width:
+            return  # nichts geändert, nicht neu zeichnen
         self.items = items
         self.full_width = full_width
         self.update()

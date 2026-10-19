@@ -45,6 +45,7 @@ def test_relic_screen_header():
     assert classify_header([box("+ VOID RELICS/REEINEMENT", 0, 0)]) == SCREEN_RELICS
     assert classify_header([box("+ VOID RELICS /REFINEMENT", 0, 0)]) == SCREEN_RELICS
     assert classify_header([box("+VOID FISSURE/REWARDS", 0, 0)]) == SCREEN_REWARDS
+    assert classify_header([box("SVOID FISSURELSELECT RELIC", 0, 0)]) == SCREEN_RELICS
     assert classify_header([box("ARSENAL", 0, 0)]) is None
     assert classify_header([box("", 0, 0)]) is None
 
@@ -139,6 +140,8 @@ def test_fixture_three_cards(recognizer):
     [
         ("dialog-axi-z2-radiant.png", RelicEquipped("Axi", "Z2", "Radiant")),
         ("dialog-axi-a17-intact.png", RelicEquipped("Axi", "A17", "Intact")),
+        # Relikt-Auswahl während einer Survival ("VOID FISSURE/SELECT RELIC"), Bild in 2000×1125
+        ("dialog-survival-meso-e5.png", RelicEquipped("Meso", "E5", "Intact")),
     ],
 )
 def test_fixture_dialog(recognizer, name, expected):

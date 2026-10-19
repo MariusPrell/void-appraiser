@@ -34,6 +34,11 @@ from .recognize import (
 )
 
 
+# So viele Scans in Folge ohne Kopfzeile, bis der Belohnungsbildschirm als geschlossen gilt
+# (bei offenem Bildschirm wird alle 0,75 s gescannt, also etwa 2 s)
+REWARDS_GONE_AFTER = 3
+
+
 @dataclass(frozen=True)
 class RewardsDetected:
     cards: tuple[RewardCard, ...]
@@ -74,6 +79,7 @@ class Scanner:
         self._manual = False
         self._stop = False
         self._rewards_visible = False
+        self._rewards_misses = 0
         self._last_cards: tuple[str, ...] = ()
         self._last_relic: tuple[RelicEquipped, float] | None = None
         self._last_status = ""
@@ -146,8 +152,7 @@ class Scanner:
     def _scan_once(self, manual: bool) -> None:
         rect = self._target(manual)
         if rect is None:
-            if self._rewards_visible:
-                self._set_rewards_gone()
+            self._rewards_missed()
             return
         self._status("Erkennung: aktiv")
         frame = capture.backend().grab(rect)
@@ -157,16 +162,19 @@ class Scanner:
         if screen == SCREEN_REWARDS:
             cards = match_reward_cards(self.recognizer.read(crop(frame, CARDS_REGION)), self.matcher)
             self._rewards_visible = True
+            self._rewards_misses = 0
             names = tuple(c.name for c in cards)
-            if names and names != self._last_cards:
+            # Ein Scan mit weniger Karten (OCR hat eine verpasst) ersetzt keine vollständige Liste.
+            # Neue Karten kommen bei Trupps nacheinander dazu, deshalb sind mehr Karten erlaubt.
+            if names and names != self._last_cards and len(names) >= len(self._last_cards):
                 self._last_cards = names
                 self.on_event(RewardsDetected(tuple(cards)))
                 self._debug_save(frame, "belohnung", True)
             elif manual:
                 self._debug_save(frame, "belohnung", True)
             return
-        if self._rewards_visible:
-            self._set_rewards_gone()
+        if self._rewards_missed():
+            return  # Belohnungsbildschirm vermutlich noch offen, nur die Kopfzeile nicht gelesen
         if screen != SCREEN_RELICS and not manual:
             return
 
@@ -182,8 +190,23 @@ class Scanner:
         if manual:
             self._status(f"Erkennung: manueller Scan fertig ({(time.monotonic() - started) * 1000:.0f} ms)")
 
+    def _rewards_missed(self) -> bool:
+        """Kopfzeile nicht erkannt. Erst nach mehreren Fehlschlägen in Folge gilt der
+        Belohnungsbildschirm als geschlossen, sonst flackert das Overlay.
+
+        Gibt True zurück, solange der Bildschirm noch als offen gilt.
+        """
+        if not self._rewards_visible:
+            return False
+        self._rewards_misses += 1
+        if self._rewards_misses >= REWARDS_GONE_AFTER:
+            self._set_rewards_gone()
+            return False
+        return True
+
     def _set_rewards_gone(self) -> None:
         self._rewards_visible = False
+        self._rewards_misses = 0
         self._last_cards = ()
         self.on_event(RewardsGone())
 
