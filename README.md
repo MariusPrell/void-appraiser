@@ -12,6 +12,10 @@ Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/Mar
 - **Linux:** `warframe-helper-linux.tar.gz` entpacken, `warframe-helper/warframe-helper` starten.
 - Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay). Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9) wird unterstützt.
 
+## Stand (0.5.0)
+- **Tab „Overview“:** Tageszeiten (Plains of Eidolon, Orb Vallis, Cambion Drift, Zariman, Duviri), alle Void Fissures mit Filter für Normal, Steel Path und Void Storm sowie die Alerts, jeweils mit Restzeit. Quelle: Fan-API [api.warframestat.us](https://api.warframestat.us), Abruf jede Minute.
+- Die Relikt-Ansicht ist jetzt der Tab „Relikte“. Sie öffnet sich automatisch, sobald ein Ausrüsten-Dialog oder Belohnungsbildschirm erkannt wird.
+
 ## Stand (0.4.0)
 - Fertige Pakete für Windows und Linux, gebaut von GitHub Actions.
 

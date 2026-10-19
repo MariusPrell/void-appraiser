@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +38,7 @@ from .hotkey import KEYS, HotkeyListener
 from .logwatch import LogWatcher, RelicEquipped, RewardScreenClosed, RewardScreenOpened
 from .paths import cache_dir, find_log, load_config, save_config
 from .overlay import Item, OverlayManager
+from .overview import OverviewTab
 from .scanner import DialogDetected, RewardsDetected, RewardsGone, Scanner, ScannerSettings, ScannerStatus
 
 RARITY_COLORS = {"Common": "#c08a5a", "Uncommon": "#c0c0c0", "Rare": "#e8c547"}
@@ -170,7 +172,7 @@ class MainWindow(QMainWindow):
     def __init__(self, log_path: Path | None):
         super().__init__()
         self.setWindowTitle(f"Warframe Helper {__version__}")
-        self.resize(760, 640)
+        self.resize(860, 700)
 
         self.config = {**DEFAULTS, **load_config()}
         self.db: RelicDB | None = None
@@ -252,7 +254,13 @@ class MainWindow(QMainWindow):
         buttons.addWidget(self.refresh_btn)
         layout.addLayout(buttons)
 
-        self.setCentralWidget(central)
+        # Tabs: Overview zuerst, dann die Relikt-Ansicht von oben
+        self.relic_page = central
+        self.tabs = QTabWidget()
+        self.overview = OverviewTab(self.config, save_config)
+        self.tabs.addTab(self.overview, "Overview")
+        self.tabs.addTab(self.relic_page, "Relikte")
+        self.setCentralWidget(self.tabs)
 
         self.scan_label = QLabel("Erkennung: startet …")
         self.statusBar().addPermanentWidget(self.scan_label)
@@ -372,6 +380,9 @@ class MainWindow(QMainWindow):
     # --- Ereignisse aus Log und Bildschirm --------------------------------
 
     def _on_event(self, event: object) -> None:
+        if isinstance(event, (DialogDetected, RewardsDetected)):
+            # Wer gerade Relikte öffnet, braucht die Relikt-Ansicht
+            self.tabs.setCurrentWidget(self.relic_page)
         if isinstance(event, DialogDetected):
             relic = event.relic
             self._show_relic(relic.tier, relic.name, relic.refinement)

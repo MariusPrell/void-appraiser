@@ -1,0 +1,148 @@
+{
+ "timestamp": "2026-10-19T14:09:55.000Z",
+ "cetusCycle": {
+  "id": "cetusCycle1792421580000",
+  "activation": "2026-10-19T13:13:00.000Z",
+  "expiry": "2026-10-19T14:53:00.000Z",
+  "isDay": true,
+  "state": "day",
+  "timeLeft": "43m 0s",
+  "isCetus": true
+ },
+ "vallisCycle": {
+  "id": "vallisCycle1792418760000",
+  "activation": "2026-10-19T14:06:00.000Z",
+  "expiry": "2026-10-19T14:26:48.000Z",
+  "isWarm": false,
+  "state": "cold"
+ },
+ "cambionCycle": {
+  "id": "cambionCycle1792421580000",
+  "activation": "2026-10-19T13:13:00.000Z",
+  "expiry": "2026-10-19T14:53:00.000Z",
+  "timeLeft": "43m 0s",
+  "state": "fass"
+ },
+ "zarimanCycle": {
+  "id": "zarimanCycle1792424580000",
+  "activation": "2026-10-19T13:13:00.000Z",
+  "expiry": "2026-10-19T15:43:00.000Z",
+  "isCorpus": false,
+  "state": "grineer",
+  "timeLeft": "1h 32m 55s"
+ },
+ "duviriCycle": {
+  "id": "duviriCyclejoy1792425600000",
+  "activation": "2026-10-19T14:00:00.000Z",
+  "expiry": "2026-10-19T16:00:00.000Z",
+  "state": "joy"
+ },
+ "fissures": [
+  {
+   "id": "6ad610ce8116b480bac1eb45",
+   "activation": "2026-10-19T12:45:02.671Z",
+   "expiry": "2026-10-19T14:29:27.911Z",
+   "node": "Helene (Saturn)",
+   "missionType": "Defense",
+   "missionTypeKey": "Defense",
+   "enemy": "Grineer",
+   "enemyKey": "Grineer",
+   "nodeKey": "Helene (Saturn)",
+   "tier": "Meso",
+   "tierNum": 2,
+   "isStorm": false,
+   "isHard": false
+  },
+  {
+   "id": "6ad60d86d16ed898c5137d53",
+   "activation": "2026-10-19T12:31:02.230Z",
+   "expiry": "2026-10-19T14:30:16.609Z",
+   "node": "Orias (Europa)",
+   "missionType": "Rescue",
+   "missionTypeKey": "Rescue",
+   "enemy": "Corpus",
+   "enemyKey": "Corpus",
+   "nodeKey": "Orias (Europa)",
+   "tier": "Neo",
+   "tierNum": 3,
+   "isStorm": false,
+   "isHard": true
+  },
+  {
+   "id": "6ad60fa237d0e9270178ae8f",
+   "activation": "2026-10-19T13:20:03.351Z",
+   "expiry": "2026-10-19T14:50:03.351Z",
+   "node": "Korm's Belt (Earth)",
+   "missionType": "Skirmish",
+   "missionTypeKey": "Skirmish",
+   "enemy": "Grineer",
+   "enemyKey": "Grineer",
+   "nodeKey": "Korm's Belt (Earth)",
+   "tier": "Lith",
+   "tierNum": 1,
+   "isStorm": true,
+   "isHard": false
+  },
+  {
+   "id": "6ad60eef8d2d64bac03eaa78",
+   "activation": "2026-10-19T12:37:03.135Z",
+   "expiry": "2026-10-19T14:14:15.079Z",
+   "node": "Tuvul Commons (Zariman)",
+   "missionType": "Void Cascade",
+   "missionTypeKey": "Void Cascade",
+   "enemy": "Crossfire",
+   "enemyKey": "Crossfire",
+   "nodeKey": "Tuvul Commons (Zariman)",
+   "tier": "Omnia",
+   "tierNum": 6,
+   "isStorm": false,
+   "isHard": true
+  }
+ ],
+ "alerts": [
+  {
+   "id": "6ad0d7360dfe89c5d822912c",
+   "activation": "2026-10-19T13:00:00.000Z",
+   "expiry": "2026-10-19T14:30:00.000Z",
+   "mission": {
+    "description": "Event Alert Title",
+    "node": "Isos (Eris)",
+    "nodeKey": "Isos (Eris)",
+    "type": "Hive",
+    "typeKey": "Hive",
+    "faction": "Infested",
+    "factionKey": "Infested",
+    "reward": {
+     "items": [],
+     "countedItems": [
+      {
+       "uniqueName": "/Lotus/Types/Gameplay/Events/RoadToTauEvent/RoadToTauEventResource",
+       "type": "Road To Tau Event Resource",
+       "key": "Road To Tau Event Resource",
+       "count": 50
+      }
+     ],
+     "credits": 17000,
+     "thumbnail": "",
+     "color": 5198940
+    },
+    "minEnemyLevel": 50,
+    "maxEnemyLevel": 50,
+    "nightmare": false,
+    "archwingRequired": false,
+    "isSharkwing": false,
+    "levelOverride": "Infested Corpus Ship Sabotage",
+    "enemySpec": "Infested Squad B",
+    "advancedSpawners": [],
+    "requiredItems": [],
+    "requiredItemUniqueNames": [],
+    "leadersAlwaysAllowed": true,
+    "levelAuras": []
+   },
+   "rewardTypes": [
+    "other"
+   ],
+   "tag": "RoadToTauEvent"
+  }
+ ]
+}
