@@ -1,4 +1,4 @@
-"""Speicherorte: Cache, Einstellungen und das Warframe-Log (EE.log) finden."""
+"""Storage locations: cache, settings, and finding the Warframe log (EE.log)."""
 
 from __future__ import annotations
 
@@ -10,21 +10,21 @@ import sys
 from pathlib import Path
 
 APP_NAME = "void-appraiser"
-# Bis Version 0.7 hieß das Programm "Warframe Helper"; dessen Ordner werden übernommen
+# Up to version 0.7 the program was called "Warframe Helper"; its folders are taken over
 OLD_APP_NAME = "warframe-helper"
 WARFRAME_STEAM_ID = "230410"
 LOG_IN_PREFIX = Path("pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")
 
 
 def _app_dir(base: Path) -> Path:
-    """Ordner des Programms; beim ersten Start wird der alte Ordner umbenannt."""
+    """Folder of the program; on first start the old folder is renamed."""
     path = base / APP_NAME
     old = base / OLD_APP_NAME
     if not path.exists() and old.is_dir():
         try:
             shutil.move(str(old), str(path))
         except OSError:
-            pass  # dann eben ohne alte Daten
+            pass  # then without the old data
     return path
 
 
@@ -69,7 +69,7 @@ def _steam_roots() -> list[Path]:
 
 
 def _steam_libraries() -> list[Path]:
-    """Alle Steam-Bibliotheken aus libraryfolders.vdf (Linux)."""
+    """All Steam libraries from libraryfolders.vdf (Linux)."""
     libs: list[Path] = []
     for root in _steam_roots():
         vdf = root / "steamapps/libraryfolders.vdf"
@@ -81,7 +81,7 @@ def _steam_libraries() -> list[Path]:
         except OSError:
             continue
         libs += [Path(p) for p in re.findall(r'"path"\s+"([^"]+)"', text)]
-    # Reihenfolge behalten, Doppelte entfernen
+    # Keep the order, remove duplicates
     seen, result = set(), []
     for lib in libs:
         key = lib.resolve() if lib.exists() else lib
@@ -102,12 +102,12 @@ def find_log_candidates() -> list[Path]:
 
 
 def find_log(cfg: dict | None = None) -> Path | None:
-    """Log-Pfad: zuerst aus den Einstellungen, sonst automatisch gesucht."""
+    """Log path: from the settings first, otherwise searched automatically."""
     cfg = cfg if cfg is not None else load_config()
     if cfg.get("log_path"):
         return Path(cfg["log_path"])
     existing = [p for p in find_log_candidates() if p.is_file()]
     if not existing:
         return None
-    # Bei mehreren Treffern das zuletzt geschriebene Log nehmen
+    # With several matches, take the most recently written log
     return max(existing, key=lambda p: p.stat().st_mtime)

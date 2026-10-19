@@ -1,6 +1,6 @@
-"""Gibt den Abschnitt einer Version aus CHANGELOG.md aus (für den Release-Text auf GitHub).
+"""Prints the section of one version from CHANGELOG.md (used as the GitHub release text).
 
-Aufruf: python packaging/release_notes.py 0.8.0 > notes.md
+Usage: python packaging/release_notes.py 0.8.0 > notes.md
 """
 
 import sys
@@ -26,4 +26,4 @@ def section(version: str) -> str:
 if __name__ == "__main__":
     version = sys.argv[1].removeprefix("v")
     print(section(version))
-    print("\n**Installation:** siehe [README](https://github.com/MariusPrell/void-appraiser#installation).")
+    print("\n**Installation:** see the [README](https://github.com/MariusPrell/void-appraiser#installation).")

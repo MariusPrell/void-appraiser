@@ -1,10 +1,10 @@
-"""Bildschirmfotos und Infos zum Warframe-Fenster, für Windows und Linux.
+"""Screenshots and information about the Warframe window, for Windows and Linux.
 
-- Hyprland (Wayland): `hyprctl` für Fenster und Monitore, `grim` für Fotos
-- Windows: Win32-API für das Vordergrundfenster, `mss` für Fotos
-- X11 und andere: `mss`, ohne Fenstererkennung (es wird der gewählte Monitor fotografiert)
+- Hyprland (Wayland): `hyprctl` for windows and monitors, `grim` for screenshots
+- Windows: Win32 API for the foreground window, `mss` for screenshots
+- X11 and others: `mss`, without window detection (the selected monitor is captured)
 
-Es wird nur der Bildschirm fotografiert, das Spiel selbst wird nicht angefasst.
+Only the screen is captured, the game itself is never touched.
 """
 
 from __future__ import annotations
@@ -50,10 +50,10 @@ def _run(cmd: list[str]) -> bytes | None:
 
 
 def _parse_ppm(data: bytes) -> np.ndarray:
-    # Kopf: "P6\n<breite> <höhe>\n<max>\n", danach RGB-Bytes
+    # Header: "P6\n<width> <height>\n<max>\n", followed by RGB bytes
     parts = data.split(maxsplit=4)
     if len(parts) < 5 or parts[0] != b"P6":
-        raise ValueError("kein PPM-Bild")
+        raise ValueError("not a PPM image")
     w, h = int(parts[1]), int(parts[2])
     pixels = data[len(data) - w * h * 3 :]
     return np.frombuffer(pixels, dtype=np.uint8).reshape(h, w, 3)
@@ -66,11 +66,11 @@ class Backend:
         raise NotImplementedError
 
     def game_window(self) -> GameWindow | None:
-        """Warframe-Fenster, falls erkennbar. None = unbekannt."""
+        """Warframe window, if it can be found. None = unknown."""
         return None
 
     def grab(self, rect: Rect) -> np.ndarray:
-        """RGB-Bild des Bereichs als numpy-Array (Höhe, Breite, 3)."""
+        """RGB image of the area as a numpy array (height, width, 3)."""
         raise NotImplementedError
 
 
@@ -108,7 +108,7 @@ class HyprlandBackend(Backend):
     def grab(self, rect: Rect) -> np.ndarray:
         data = _run(["grim", "-t", "ppm", "-g", f"{rect.x},{rect.y} {rect.w}x{rect.h}", "-"])
         if not data:
-            raise RuntimeError("grim konnte kein Bild machen")
+            raise RuntimeError("grim could not take a screenshot")
         return _parse_ppm(data)
 
 
@@ -122,7 +122,7 @@ class MssBackend(Backend):
         self._local = None
 
     def _sct(self):
-        # mss-Objekte sind an den Thread gebunden, der sie erzeugt hat
+        # mss objects are bound to the thread that created them
         import threading
 
         if self._local is None:
@@ -132,7 +132,7 @@ class MssBackend(Backend):
         return self._local.sct
 
     def monitors(self) -> list[Monitor]:
-        mons = self._sct().monitors[1:]  # [0] ist der ganze Desktop
+        mons = self._sct().monitors[1:]  # [0] is the whole desktop
         return [
             Monitor(f"Monitor {i + 1} ({m['width']}×{m['height']})", Rect(m["left"], m["top"], m["width"], m["height"]))
             for i, m in enumerate(mons)
@@ -158,7 +158,7 @@ def _win32_game_window() -> GameWindow | None:
     if not hwnd:
         return None
     rect = wintypes.RECT()
-    # Client-Bereich in Bildschirmkoordinaten (ohne Rahmen und Titelleiste)
+    # Client area in screen coordinates (without border and title bar)
     user32.GetClientRect(hwnd, ctypes.byref(rect))
     origin = wintypes.POINT(0, 0)
     user32.ClientToScreen(hwnd, ctypes.byref(origin))

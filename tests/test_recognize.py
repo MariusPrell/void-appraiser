@@ -24,7 +24,7 @@ NAMES = [
     "2X Forma Blueprint",
     "Forma Blueprint",
 ]
-SCREENSHOT = Path(__file__).parent.parent / "testdaten/screenshots/belohnung-121231.png"
+SCREENSHOT = Path(__file__).parent.parent / "testdata/screenshots/belohnung-121231.png"
 
 
 def box(text, x0, y0, x1=None, y1=None):
@@ -36,7 +36,7 @@ def test_reward_header():
     assert is_reward_header([box("+ VOLD FISSURE/REWARDS", 0, 0)])
     assert is_reward_header([box("+VOID FISSIRE/REWAROS", 0, 0)])
     assert is_reward_header([box("+ VOID FISSURE/REWARD", 0, 0)])
-    # Echte Fehllesungen aus Scans
+    # Real misreadings from scans
     assert is_reward_header([box("VODFISSIREIREWAROS", 0, 0)])
     assert is_reward_header([box("VOIDEISSIRE/REWAROS", 0, 0)])
     assert is_reward_header([box("VOID", 0, 0), box("FISSURE/", 0, 0), box("R", 0, 0), box("W", 0, 0), box("RDS", 0, 0)])
@@ -60,7 +60,7 @@ def test_dialog():
     ]
     assert parse_equip_dialog(lines) == RelicEquipped("Axi", "Y3", "Radiant")
     assert parse_equip_dialog([box("Are you sure you want to equip Lith P1 Relic for this mission?", 0, 0)]) == RelicEquipped("Lith", "P1", "Intact")
-    # OCR-Fehler in der Veredelung und Zeilenumbruch im Namen
+    # OCR error in the refinement and a line break in the name
     assert parse_equip_dialog([box("want to equip Neo N8 Relic [FLAWLES5] for", 0, 0)]) == RelicEquipped("Neo", "N8", "Flawless")
     refine = "Are you sure you want to refine and equip Meso S8 Relic? It will cost 50 Void Traces"
     assert parse_equip_dialog([box(refine, 0, 0)]) == RelicEquipped("Meso", "S8", "Flawless")
@@ -101,13 +101,13 @@ def test_ui_area():
     assert ui_area(1920, 1200) == (0, 60, 1920, 1080)
 
 
-@pytest.mark.skipif(not SCREENSHOT.exists(), reason="Screenshot nicht vorhanden (nicht im Repo)")
+@pytest.mark.skipif(not SCREENSHOT.exists(), reason="screenshot not available (not in the repo)")
 def test_real_screenshot():
     from PIL import Image
 
     from void_appraiser.recognize import CARDS_REGION, HEADER_LINE, Recognizer, crop
 
-    frame = np.asarray(Image.open(SCREENSHOT).convert("RGB"))[:, 1920:]  # nur der Spiel-Monitor
+    frame = np.asarray(Image.open(SCREENSHOT).convert("RGB"))[:, 1920:]  # only the game monitor
     rec = Recognizer()
     assert is_reward_header([rec.read_line(crop(frame, HEADER_LINE))])
     cards = match_reward_cards(rec.read(crop(frame, CARDS_REGION)), NameMatcher(NAMES))
@@ -133,7 +133,7 @@ def _frame(name):
 def test_fixture_three_cards(recognizer):
     from void_appraiser.recognize import CARDS_REGION, HEADER_LINE, crop
 
-    frame = _frame("belohnung-3-karten.png")
+    frame = _frame("rewards-3-cards.png")
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_REWARDS
     names = ["Zylok Prime Barrel", "Caliban Prime Chassis Blueprint", "Kogake Prime Boot", "Caliban Prime Blueprint"]
     cards = match_reward_cards(recognizer.read(crop(frame, CARDS_REGION)), NameMatcher(names))
@@ -145,7 +145,7 @@ def test_fixture_three_cards(recognizer):
     [
         ("dialog-axi-z2-radiant.png", RelicEquipped("Axi", "Z2", "Radiant")),
         ("dialog-axi-a17-intact.png", RelicEquipped("Axi", "A17", "Intact")),
-        # Relikt-Auswahl während einer Survival ("VOID FISSURE/SELECT RELIC"), Bild in 2000×1125
+        # Relic selection during a survival ("VOID FISSURE/SELECT RELIC"), image at 2000×1125
         ("dialog-survival-meso-e5.png", RelicEquipped("Meso", "E5", "Intact")),
     ],
 )
@@ -158,8 +158,8 @@ def test_fixture_dialog(recognizer, name, expected):
 
 
 def _widen(frame, width):
-    """Macht aus einem 16:9-Bild ein breiteres, so wie Warframe die Oberfläche anordnet:
-    Kopfzeile bleibt am linken Rand, alles andere wandert in die Mitte."""
+    """Turns a 16:9 image into a wider one, the way Warframe arranges its interface:
+    the header stays at the left edge, everything else moves to the center."""
     h, w = frame.shape[:2]
     out = np.zeros((h, width, 3), dtype=np.uint8)
     shift = (width - w) // 2
@@ -169,11 +169,11 @@ def _widen(frame, width):
     return out
 
 
-@pytest.mark.parametrize("width", [3440, 5120])  # 21:9 (UWQHD) und 32:9 bei 1440 px Höhe
+@pytest.mark.parametrize("width", [3440, 5120])  # 21:9 (UWQHD) and 32:9 at 1440 px height
 def test_ultrawide(recognizer, width):
     from void_appraiser.recognize import CARDS_REGION, DIALOG_REGION, HEADER_LINE, crop
 
-    frame = _widen(_frame("belohnung-3-karten.png"), width)
+    frame = _widen(_frame("rewards-3-cards.png"), width)
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_REWARDS
     names = ["Zylok Prime Barrel", "Caliban Prime Chassis Blueprint", "Kogake Prime Boot"]
     assert [c.name for c in match_reward_cards(recognizer.read(crop(frame, CARDS_REGION)), NameMatcher(names))] == names
@@ -188,9 +188,9 @@ def test_region_anchors():
 
     region = (0.0, 0.0, 0.5, 0.5, 1.0, LEFT)
     assert region_rect(2560, 1440, region) == (0, 0, 1280, 720)
-    assert region_rect(5120, 1440, region) == (0, 0, 1280, 720)  # bleibt am linken Rand
+    assert region_rect(5120, 1440, region) == (0, 0, 1280, 720)  # stays at the left edge
     centered = (0.25, 0.0, 0.75, 0.5, 1.0, CENTER)
-    assert region_rect(5120, 1440, centered) == (1920, 0, 1280, 720)  # mittig: (5120 - 2560) / 2 + 640
+    assert region_rect(5120, 1440, centered) == (1920, 0, 1280, 720)  # centered: (5120 - 2560) / 2 + 640
 
 
 INVENTORY_NAMES = [
@@ -211,19 +211,19 @@ INVENTORY_NAMES = [
 
 
 def test_fixture_inventory(recognizer):
-    """Inventar in 32:9 (aus einem verkleinerten Stream-Bild, daher unscharf)."""
+    """Inventory at 32:9 (from a downscaled stream image, hence blurry)."""
     from PIL import Image
 
     from void_appraiser.recognize import CATEGORY_LINE, HEADER_LINE, SCREEN_INVENTORY, crop, is_prime_parts, read_inventory
 
-    img = Image.open(FIXTURES / "inventar-prime-parts-32zu9.png").convert("RGB")
+    img = Image.open(FIXTURES / "inventory-prime-parts-32x9.png").convert("RGB")
     frame = np.asarray(img.resize((round(img.width * 1440 / img.height), 1440), Image.LANCZOS))
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_INVENTORY
     assert is_prime_parts(recognizer.read_line(crop(frame, CATEGORY_LINE)))
 
     items = read_inventory(frame, recognizer, NameMatcher(INVENTORY_NAMES))
     names = {i.name for i in items}
-    # Nur Teile, die wirklich zu sehen sind, und die gebauten nicht mit Blaupausen verwechseln
+    # Only parts that are really visible, and built parts not confused with blueprints
     assert "Nyx Prime Chassis Blueprint" not in names
     assert "Nyx Prime Systems" not in names
     assert len(names) >= 38

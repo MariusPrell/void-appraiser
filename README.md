@@ -1,63 +1,63 @@
 # Void Appraiser
 
-Zeigt dir in Warframe auf einen Blick, was deine Void-Relikte und Prime-Teile wert sind: direkt über dem Spiel und in einem eigenen Fenster. Für Windows und Linux.
+Shows you at a glance what your void relics and prime parts are worth in Warframe: right on top of the game and in a separate window. For Windows and Linux.
 
-> Kein offizielles Produkt, nicht mit Digital Extremes verbunden. Warframe ist eine Marke von Digital Extremes Ltd.
+> Not an official product and not affiliated with Digital Extremes. Warframe is a trademark of Digital Extremes Ltd.
 
-## Was es kann
+## Features
 
-- **Preise auf dem Belohnungsbildschirm:** Am Ende einer Fissure stehen Platin und Ducats unter jeder Karte, das wertvollste Teil ist grün markiert.
-- **Relikt-Vorschau:** Beim Ausrüsten eines Relikts siehst du alle möglichen Teile mit Chance, Preis und dem Durchschnittswert pro Öffnung.
-- **Inventar:** Unter Inventar → Prime Parts liest es deine Teile samt Anzahl ein und zeigt **Ducats pro Platin**. So siehst du, was du besser bei Baro Ki'Teer abgibst und was du verkaufen solltest.
-- **Overview:** Tageszeiten der offenen Welten, alle Void Fissures (Normal, Steel Path, Void Storm) und Alerts mit Restzeit.
-- **Drop-Suche:** Wo gibt es ein Teil? Suche in den offiziellen Drop-Tabellen, z. B. „Gauss Neuroptics“.
+- **Prices on the reward screen:** At the end of a fissure, platinum and ducats appear below every card, and the most valuable part is highlighted in green.
+- **Relic preview:** When you equip a relic, you see all possible parts with chance, price and the average value per opening.
+- **Inventory:** Under Inventory → Prime Parts it reads your parts including their count and shows **ducats per platinum**. That tells you what to give to Baro Ki'Teer and what to sell.
+- **Overview:** Day cycles of the open worlds, all void fissures (normal, Steel Path, Void Storm) and alerts with time left.
+- **Drop search:** Where does a part drop? Search the official drop tables, e.g. "Gauss Neuroptics".
 
-Preise kommen von [warframe.market](https://warframe.market), Drop-Daten und Spielzustand von [warframestat.us](https://warframestat.us).
+The interface is available in English and German (File → Settings). Prices come from [warframe.market](https://warframe.market), drop data and the world state from [warframestat.us](https://warframestat.us).
 
 ## Installation
 
-Lade das passende Paket aus dem **[neuesten Release](https://github.com/MariusPrell/void-appraiser/releases/latest)** herunter. Python musst du nicht installieren.
+Download the package for your system from the **[latest release](https://github.com/MariusPrell/void-appraiser/releases/latest)**. You do not need to install Python.
 
 **Windows**
-1. `void-appraiser-windows.zip` entpacken.
-2. Im Ordner `void-appraiser` die Datei `void-appraiser.exe` starten.
-3. Falls Windows warnt („Windows hat den PC geschützt“): „Weitere Informationen“ → „Trotzdem ausführen“. Das Programm ist nicht signiert.
+1. Extract `void-appraiser-windows.zip`.
+2. Start `void-appraiser.exe` in the `void-appraiser` folder.
+3. If Windows warns you ("Windows protected your PC"): "More info" → "Run anyway". The program is not signed.
 
 **Linux**
 ```bash
 tar -xzf void-appraiser-linux.tar.gz
 ./void-appraiser/void-appraiser
 ```
-Unterstützt werden Hyprland und X11. Unter Hyprland wird `grim` für Bildschirmfotos gebraucht.
+Hyprland and X11 are supported. On Hyprland, `grim` is needed for screenshots.
 
-**Voraussetzungen im Spiel**
-- Sprache **Englisch**
-- Anzeigemodus **randloses Vollbild** oder Fenster, damit das Overlay sichtbar ist
-- Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9)
+**In-game requirements**
+- Language **English**
+- Display mode **borderless fullscreen** or windowed, so the overlay is visible
+- Any resolution and aspect ratio (16:9, 21:9, 32:9)
 
-## Bedienung
+## Usage
 
-- Das Programm erkennt Belohnungsbildschirm, Ausrüsten-Dialog und Inventar automatisch, solange Warframe im Vordergrund ist.
-- **Einfg** löst einen Scan von Hand aus, im Inventar liest es damit die Teile ein. Danach scrollen und erneut drücken, die Liste wird ergänzt.
-- Unter **Datei → Einstellungen** stellst du Taste, Scan-Abstand, Overlay und Bildschirm ein.
+- The reward screen, the equip dialog and the inventory are detected automatically while Warframe is in the foreground.
+- **Insert** triggers a scan by hand; in the inventory it reads your parts. Then scroll and press it again, the list is extended.
+- Under **File → Settings** you can change the language, key, scan interval, overlay and screen.
 
-## Sicherheit
+## Safety
 
-Void Appraiser arbeitet nur von außen, wie WFInfo. Es liest das Log `EE.log`, das Warframe ohnehin schreibt, macht Bildschirmfotos und fragt öffentliche Webseiten ab. Es liest **nie** den Spielspeicher, ändert **nie** Spieldateien und sendet **nie** Eingaben ans Spiel. Eine Garantie gegen Banns gibt es bei Fremdprogrammen trotzdem nicht.
+Void Appraiser only works from the outside, like WFInfo. It reads the log file `EE.log` that Warframe writes anyway, takes screenshots and queries public websites. It **never** reads the game's memory, **never** changes game files and **never** sends input to the game. As with any third-party tool, there is still no guarantee against bans.
 
-## Entwicklung
+## Development
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e . pytest pyinstaller
-.venv/bin/void-appraiser            # starten
-.venv/bin/python -m pytest          # Tests
-.venv/bin/pyinstaller packaging/void-appraiser.spec --noconfirm   # Paket bauen
+.venv/bin/void-appraiser            # run
+.venv/bin/python -m pytest          # tests
+.venv/bin/pyinstaller packaging/void-appraiser.spec --noconfirm   # build a package
 ```
-Die Pakete für Windows und Linux baut GitHub Actions bei jedem Versions-Tag (`v*`). Was sich je Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) und bei den Releases.
+GitHub Actions builds the Windows and Linux packages for every version tag (`v*`). What changed in each version is listed in the [CHANGELOG](CHANGELOG.md) and on the releases. Contributions are welcome; code, comments and commit messages are in English, the interface texts are translated in `void_appraiser/i18n_de.py`.
 
-## Lizenz
+## License
 
-[MIT](LICENSE). Die Pakete enthalten Software anderer Projekte, u. a. Qt (LGPL-3.0), ONNX Runtime (MIT) und die PaddleOCR-Modelle (Apache-2.0). Alle Lizenztexte liegen jedem Paket in `THIRD-PARTY-LICENSES.txt` bei.
+[MIT](LICENSE). The packages include software from other projects, among them Qt (LGPL-3.0), ONNX Runtime (MIT) and the PaddleOCR models (Apache-2.0). All license texts are included in every package as `THIRD-PARTY-LICENSES.txt`.
 
-Mit Hilfe von Claude (Anthropic) entwickelt. Bis Version 0.7 hieß das Projekt „Warframe Helper“.
+Developed with the help of Claude (Anthropic). Up to version 0.7 the project was called "Warframe Helper".

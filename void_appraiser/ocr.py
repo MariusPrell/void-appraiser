@@ -1,18 +1,18 @@
-"""Schlanke Texterkennung direkt auf der ONNX-Runtime, ohne OpenCV.
+"""Lean text recognition directly on the ONNX runtime, without OpenCV.
 
-Nutzt dieselben PaddleOCR-Modelle (PP-OCRv6 small, Apache-2.0) wie RapidOCR
-und bildet dessen Ablauf nach:
+Uses the same PaddleOCR models (PP-OCRv6 small, Apache-2.0) as RapidOCR and
+follows its pipeline:
 
-1. Textsuche (DBNet): Wahrscheinlichkeitskarte, Schwelle, zusammenhängende
-   Flächen, Rechteck um jede Fläche, leicht vergrößert ("unclip").
-2. Texterkennung (CRNN mit CTC): jede Zeile auf 48 px Höhe skalieren,
-   Zeichen mit der höchsten Wahrscheinlichkeit, Wiederholungen und Lücken weg.
+1. Text detection (DBNet): probability map, threshold, connected regions,
+   a rectangle around each region, slightly enlarged ("unclip").
+2. Text recognition (CRNN with CTC): scale each line to 48 px height, take the
+   most likely character per step, drop repetitions and blanks.
 
-Der Ablauf ist an RapidOCR (Apache-2.0, RapidOCR Authors) und PaddleOCR
-(Apache-2.0) angelehnt; Modelle und Lizenzen liegen in models/.
+The pipeline is based on RapidOCR (Apache-2.0, RapidOCR Authors) and PaddleOCR
+(Apache-2.0); models and licenses are in models/.
 
-Vereinfachung gegenüber RapidOCR: Rechtecke statt gedrehter Vierecke. In
-Warframe steht Text immer waagerecht, dafür braucht es kein OpenCV.
+Simplification compared to RapidOCR: rectangles instead of rotated
+quadrilaterals. Text in Warframe is always horizontal, so no OpenCV is needed.
 """
 
 from __future__ import annotations
@@ -25,16 +25,16 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-# Im fertigen Paket liegen die Modelle neben dem Code (PyInstaller: sys._MEIPASS)
+# In the built package the models sit next to the code (PyInstaller: sys._MEIPASS)
 _BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).parent.parent))
 MODEL_DIR = _BASE / "void_appraiser" / "models"
 DET_MODEL = "PP-OCRv6_det_small.onnx"
 REC_MODEL = "PP-OCRv6_rec_small.onnx"
 
-# Werte wie in RapidOCR (config.yaml)
-MAX_SIDE_LEN = 2000  # größere Bilder vorher verkleinern
+# Values as in RapidOCR (config.yaml)
+MAX_SIDE_LEN = 2000  # shrink larger images first
 MIN_SIDE_LEN = 30
-PAD_MIN_HEIGHT = 30  # sehr flache/breite Bilder oben und unten auffüllen
+PAD_MIN_HEIGHT = 30  # pad very flat/wide images at the top and bottom
 PAD_RATIO = 8
 DET_THRESH = 0.3
 DET_BOX_THRESH = 0.5
@@ -50,7 +50,7 @@ TEXT_SCORE = 0.5
 class Line:
     text: str
     score: float
-    box: tuple[int, int, int, int]  # x0, y0, x1, y1 im Eingabebild
+    box: tuple[int, int, int, int]  # x0, y0, x1, y1 in the input image
 
 
 def _resize(img: np.ndarray, width: int, height: int) -> np.ndarray:
@@ -58,11 +58,11 @@ def _resize(img: np.ndarray, width: int, height: int) -> np.ndarray:
 
 
 def _components(mask: np.ndarray) -> list[tuple[int, int, int, int, np.ndarray]]:
-    """Zusammenhängende Flächen (8er-Nachbarschaft) über Lauflängen.
+    """Connected regions (8-neighborhood) via run lengths.
 
-    Gibt pro Fläche (x0, y0, x1, y1, Zeilen-Spalten-Indizes) zurück.
+    Returns (x0, y0, x1, y1, run indices) per region.
     """
-    runs = []  # (zeile, start, ende)
+    runs = []  # (row, start, end)
     for y in range(mask.shape[0]):
         row = mask[y]
         if not row.any():
@@ -80,7 +80,7 @@ def _components(mask: np.ndarray) -> list[tuple[int, int, int, int, np.ndarray]]
             i = parent[i]
         return i
 
-    # Läufe in benachbarten Zeilen verbinden, wenn sie sich (auch diagonal) berühren
+    # Join runs in neighboring rows when they touch (also diagonally)
     prev_start = 0
     for i, (y, s, e) in enumerate(runs):
         while prev_start < i and runs[prev_start][0] < y - 1:
@@ -88,7 +88,7 @@ def _components(mask: np.ndarray) -> list[tuple[int, int, int, int, np.ndarray]]
         j = prev_start
         while j < i and runs[j][0] == y - 1:
             _, ps, pe = runs[j]
-            if ps <= e and pe >= s:  # e und pe sind exklusiv, daher <= für Diagonalen
+            if ps <= e and pe >= s:  # e and pe are exclusive, hence <= for diagonals
                 ri, rj = find(i), find(j)
                 if ri != rj:
                     parent[ri] = rj
@@ -121,12 +121,12 @@ class OcrEngine:
         chars = self.rec.get_modelmeta().custom_metadata_map["character"].splitlines()
         self.chars = ["<blank>"] + chars + [" "]
 
-    # --- Textsuche ----------------------------------------------------------
+    # --- Text detection -----------------------------------------------------
 
     def _prepare(self, img: np.ndarray) -> tuple[np.ndarray, float, int]:
-        """Größe begrenzen und flache Bilder auffüllen (wie RapidOCR).
+        """Limit the size and pad flat images (like RapidOCR).
 
-        Gibt (Bild, Skalierung, Rand oben) zurück, um Boxen zurückzurechnen.
+        Returns (image, scale, top padding) to map boxes back.
         """
         h, w = img.shape[:2]
         scale = 1.0
@@ -157,7 +157,7 @@ class OcrEngine:
         pred = self.det.run(None, {"x": x})[0][0, 0]
 
         mask = pred > DET_THRESH
-        # Dilatation mit 2×2 wie in RapidOCR
+        # 2×2 dilation as in RapidOCR
         grown = mask.copy()
         grown[1:, :] |= mask[:-1, :]
         grown[:, 1:] |= mask[:, :-1]
@@ -170,12 +170,12 @@ class OcrEngine:
                 continue
             if pred[y0:y1, x0:x1].mean() < DET_BOX_THRESH:
                 continue
-            # "unclip": Rechteck um d = Fläche × 1,6 / Umfang vergrößern
+            # "unclip": enlarge the rectangle by d = area × 1.6 / perimeter
             d = bw * bh * DET_UNCLIP / (2 * (bw + bh))
             fx0, fy0, fx1, fy1 = x0 - d, y0 - d, x1 + d, y1 + d
             if min(fx1 - fx0, fy1 - fy0) < DET_MIN_SIZE + 2:
                 continue
-            # zurück in Koordinaten des Eingabebilds
+            # back to coordinates of the input image
             sx, sy = w / pred.shape[1], h / pred.shape[0]
             bx0 = max(0, round(fx0 * sx) / scale)
             bx1 = min(img.shape[1], round(fx1 * sx) / scale)
@@ -186,7 +186,7 @@ class OcrEngine:
         boxes.sort(key=lambda b: (b[1], b[0]))
         return boxes
 
-    # --- Texterkennung ------------------------------------------------------
+    # --- Text recognition ---------------------------------------------------
 
     def recognize(self, crops: list[np.ndarray]) -> list[tuple[str, float]]:
         results: list[tuple[str, float]] = [("", 0.0)] * len(crops)
@@ -210,13 +210,13 @@ class OcrEngine:
         idx = probs.argmax(axis=1)
         conf = probs.max(axis=1)
         keep = idx != 0
-        keep[1:] &= idx[1:] != idx[:-1]  # Wiederholungen zusammenfassen (CTC)
+        keep[1:] &= idx[1:] != idx[:-1]  # merge repetitions (CTC)
         if not keep.any():
             return "", 0.0
         text = "".join(self.chars[i] for i in idx[keep])
         return text, float(conf[keep].mean())
 
-    # --- Zusammen -----------------------------------------------------------
+    # --- Combined -----------------------------------------------------------
 
     def read(self, img: np.ndarray) -> list[Line]:
         boxes = self.detect(img)
@@ -228,5 +228,5 @@ class OcrEngine:
         return lines
 
     def read_line(self, img: np.ndarray) -> tuple[str, float]:
-        """Ganzes Bild als eine Zeile lesen, ohne Textsuche."""
+        """Read the whole image as one line, without text detection."""
         return self.recognize([img])[0]

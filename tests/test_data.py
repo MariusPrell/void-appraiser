@@ -23,7 +23,7 @@ RAW = {
             ],
         },
         {"tier": "Lith", "relicName": "A10", "state": "Intact", "rewards": []},
-        {"tier": "Lith", "state": "Intact", "rewards": []},  # kaputter Eintrag
+        {"tier": "Lith", "state": "Intact", "rewards": []},  # broken entry
         {"tier": "Lith", "relicName": "A2", "state": "Intact", "rewards": []},
     ]
 }
@@ -36,9 +36,9 @@ def _order(plat, status="ingame", visible=True):
 def test_relic_lookup_and_sorting():
     db = RelicDB(RAW)
     rewards = db.rewards("Axi", "c12", "Radiant")
-    assert [r.name for r in rewards][0] == "Citrine Prime Neuroptics Blueprint"  # seltenste zuerst
+    assert [r.name for r in rewards][0] == "Citrine Prime Neuroptics Blueprint"  # rarest first
     assert db.rewards("Axi", "C99", "Intact") is None
-    # Seltenheit kommt aus der Intact-Chance, nicht aus der Quelle
+    # Rarity comes from the intact chance, not from the source
     assert {r.name: r.rarity for r in rewards}["Kestrel Prime Blueprint"] == "Common"
     assert db.names() == ["Lith A2", "Lith A10", "Axi C12"]
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def selftest(image: Path) -> int:
-    """Erkennung auf einem Bildschirmfoto prüfen, ohne Fenster (auch für fertige Pakete)."""
+    """Test the recognition on a screenshot without a window (also for built packages)."""
     import numpy as np
     from PIL import Image
 
@@ -25,10 +25,10 @@ def selftest(image: Path) -> int:
     frame = np.asarray(Image.open(image).convert("RGB"))
     rec = Recognizer()
     screen = classify_header([rec.read_line(crop(frame, HEADER_LINE))])
-    print("Bildschirm:", screen)
+    print("Screen:", screen)
     if screen == SCREEN_REWARDS:
         cards = match_reward_cards(rec.read(crop(frame, CARDS_REGION)), NameMatcher(RelicDB.load().reward_names()))
-        print("Karten:", [c.name for c in cards])
+        print("Cards:", [c.name for c in cards])
         return 0 if cards else 1
     relic = parse_equip_dialog(rec.read(crop(frame, DIALOG_REGION)))
     print("Dialog:", relic)
@@ -36,9 +36,9 @@ def selftest(image: Path) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="void-appraiser", description="Wert von Void-Relikt-Belohnungen anzeigen")
-    parser.add_argument("--log", type=Path, help="Pfad zur EE.log (sonst automatisch gesucht)")
-    parser.add_argument("--selftest", type=Path, metavar="BILD", help="Erkennung auf einem Bildschirmfoto testen und beenden")
+    parser = argparse.ArgumentParser(prog="void-appraiser", description="Shows the value of Warframe void relic rewards")
+    parser.add_argument("--log", type=Path, help="path to EE.log (searched automatically otherwise)")
+    parser.add_argument("--selftest", type=Path, metavar="IMAGE", help="test the recognition on a screenshot and exit")
     args = parser.parse_args()
 
     if args.selftest:

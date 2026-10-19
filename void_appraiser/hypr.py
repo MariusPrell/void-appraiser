@@ -1,12 +1,12 @@
-"""Steuerung eigener Fenster unter Hyprland (für das Overlay).
+"""Controls our own windows on Hyprland (for the overlay).
 
-Wayland-Programme dürfen ihre Fenster nicht selbst platzieren, deshalb
-geht das über `hyprctl dispatch`. Angefasst werden nur die eigenen Overlay-
-Fenster, keine Einstellungen von Hyprland.
+Wayland programs may not place their windows themselves, so this goes through
+`hyprctl dispatch`. Only our own overlay windows are touched, never any
+Hyprland settings.
 
-Hyprland ab 0.55 mit Lua-Konfiguration erwartet Lua-Aufrufe
-(`hl.dsp.window.float({...})`), ältere Versionen die klassische Syntax.
-Beides wird unterstützt; die klassische ist ungetestet.
+Hyprland 0.55+ with a Lua config expects Lua calls
+(`hl.dsp.window.float({...})`), older versions the classic syntax.
+Both are supported; the classic one is untested.
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ def set_prop(address: str, prop: str, value: str, classic_prop: str) -> None:
 
 
 def setup_overlay(address: str) -> None:
-    """Schwebend, ohne Rahmen, Schatten, Animation und ohne Fokus."""
+    """Floating, without border, shadow, animation and focus."""
     _dispatch(f'hl.dsp.window.float({{ action = "enable", {_w(address)} }})', ["setfloating", f"address:{address}"])
     for prop, classic in (
         ("no_focus", "nofocus"),
@@ -98,7 +98,7 @@ def _pin(address: str, enable: bool) -> None:
     pinned = any(c.get("address") == address and c.get("pinned") for c in clients())
     if pinned == enable:
         return
-    # Klassisch schaltet "pin" nur um, deshalb vorher den Zustand prüfen
+    # The classic "pin" only toggles, so check the state first
     _dispatch(
         f'hl.dsp.window.pin({{ action = "{"enable" if enable else "disable"}", {_w(address)} }})',
         ["pin", f"address:{address}"],
@@ -109,7 +109,7 @@ PARK_WORKSPACE = "special:void-appraiser"
 
 
 def _monitor_workspace(monitor: str) -> str | None:
-    """Sichtbarer Arbeitsbereich eines Monitors, in Dispatcher-Schreibweise."""
+    """Visible workspace of a monitor, in dispatcher notation."""
     try:
         mons = json.loads(_hyprctl("monitors", "-j") or "[]")
     except ValueError:
@@ -117,13 +117,13 @@ def _monitor_workspace(monitor: str) -> str | None:
     for m in mons:
         if m.get("name") == monitor:
             ws = m.get("activeWorkspace", {})
-            # Benannte Arbeitsbereiche haben negative IDs
+            # Named workspaces have negative IDs
             return f"name:{ws['name']}" if ws.get("id", 0) < 0 else str(ws.get("id"))
     return None
 
 
 def _move_silent(address: str, workspace: str) -> None:
-    # follow = false: Der Fokus bleibt, wo er ist (sonst springt er mit)
+    # follow = false: the focus stays where it is (otherwise it moves along)
     _dispatch(
         f'hl.dsp.window.move({{ workspace = "{workspace}", follow = false, {_w(address)} }})',
         ["movetoworkspacesilent", f"{workspace},address:{address}"],
@@ -131,15 +131,15 @@ def _move_silent(address: str, workspace: str) -> None:
 
 
 def park(address: str) -> None:
-    """Fenster auf einem versteckten Spezial-Arbeitsbereich ablegen, ohne den Fokus zu ändern."""
+    """Park a window on a hidden special workspace without changing the focus."""
     _pin(address, False)
     _move_silent(address, PARK_WORKSPACE)
 
 
 def place(address: str, monitor: str, x: int, y: int, w: int, h: int) -> None:
-    """Fenster auf den sichtbaren Arbeitsbereich eines Monitors legen (Layout-Koordinaten).
+    """Put a window on the visible workspace of a monitor (layout coordinates).
 
-    Anheften sorgt dafür, dass es auch bei Wechsel des Arbeitsbereichs sichtbar bleibt.
+    Pinning keeps it visible when the workspace changes.
     """
     workspace = _monitor_workspace(monitor)
     if workspace:

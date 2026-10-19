@@ -1,4 +1,4 @@
-"""Relikt-Inhalte (drops.warframestat.us) und Preise (warframe.market) mit Cache."""
+"""Relic contents (drops.warframestat.us) and prices (warframe.market) with a cache."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ USER_AGENT = f"void-appraiser/{__version__}"
 RELIC_DATA_MAX_AGE = 24 * 3600
 ITEM_LIST_MAX_AGE = 24 * 3600
 PRICE_MAX_AGE = 3600
-# warframe.market erlaubt etwa 3 Anfragen pro Sekunde, wir bleiben deutlich darunter
+# warframe.market allows about 3 requests per second, we stay well below that
 MARKET_MIN_INTERVAL = 0.5
-MARKET_RETRIES = 3  # bei Fehlern (z. B. 429 "zu viele Anfragen") mit wachsender Pause
+MARKET_RETRIES = 3  # on errors (e.g. 429 "too many requests") with growing pauses
 
 TIERS = ("Lith", "Meso", "Neo", "Axi", "Requiem")
 REFINEMENTS = ("Intact", "Exceptional", "Flawless", "Radiant")
@@ -33,12 +33,12 @@ REFINEMENTS = ("Intact", "Exceptional", "Flawless", "Radiant")
 class Reward:
     name: str
     rarity: str
-    chance: float  # in Prozent
+    chance: float  # in percent
 
 
 @dataclass(frozen=True)
 class Price:
-    median: float | None  # Median der günstigsten Verkaufsangebote
+    median: float | None  # median of the cheapest sell orders
     lowest: int | None
     offers: int
     fetched: float
@@ -57,7 +57,7 @@ def _http_json(url: str, timeout: float = 20) -> dict:
 
 
 def _cached_json(name: str, url: str, max_age: float) -> dict:
-    """Lädt eine Datei, wenn der Cache älter als max_age ist. Bei Netzfehlern gilt der alte Cache."""
+    """Downloads a file if the cache is older than max_age. On network errors the old cache is used."""
     path = cache_dir() / name
     if path.is_file() and time.time() - path.stat().st_mtime < max_age:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -74,7 +74,7 @@ def _cached_json(name: str, url: str, max_age: float) -> dict:
 
 
 def rarity_for(intact_chance: float | None, fallback: str) -> str:
-    """Intact-Chancen: Common 25,33 %, Uncommon 11 %, Rare 2 %."""
+    """Intact chances: Common 25.33 %, Uncommon 11 %, Rare 2 %."""
     if intact_chance is None:
         return fallback
     if intact_chance >= 20:
@@ -85,17 +85,17 @@ def rarity_for(intact_chance: float | None, fallback: str) -> str:
 
 
 class RelicDB:
-    """Inhalt aller Relikte, Schlüssel: ("Axi", "C12", "Radiant")."""
+    """Contents of all relics, key: ("Axi", "C12", "Radiant")."""
 
     def __init__(self, raw: dict):
         self._relics: dict[tuple[str, str, str], list[Reward]] = {}
         for relic in raw.get("relics", []):
             if not all(k in relic for k in ("tier", "relicName", "state", "rewards")):
-                continue  # Die Quelle enthält vereinzelt kaputte Einträge
+                continue  # the source contains a few broken entries
             key = (relic["tier"], relic["relicName"], relic["state"])
             rewards = [Reward(r["itemName"], r["rarity"], float(r["chance"])) for r in relic["rewards"]]
             self._relics[key] = rewards
-        # Die Seltenheit in der Quelle ist oft falsch; sie folgt aus der Chance im Intact-Zustand
+        # The rarity in the source is often wrong; it follows from the intact chance
         for (tier, name, state), rewards in self._relics.items():
             intact = {r.name: r.chance for r in self._relics.get((tier, name, "Intact"), [])}
             fixed = [Reward(r.name, rarity_for(intact.get(r.name), r.rarity), r.chance) for r in rewards]
@@ -110,11 +110,11 @@ class RelicDB:
         return self._relics.get((tier, name.upper(), refinement))
 
     def reward_names(self) -> list[str]:
-        """Alle Teile, die aus irgendeinem Relikt kommen können."""
+        """All parts that can come from any relic."""
         return sorted({r.name for rewards in self._relics.values() for r in rewards})
 
     def names(self, tier: str | None = None) -> list[str]:
-        """Sortierte Reliktnamen wie "Axi C12"."""
+        """Sorted relic names like "Axi C12"."""
         found = {(t, n) for (t, n, _) in self._relics if tier in (None, t)}
         order = {t: i for i, t in enumerate(TIERS)}
 
@@ -139,7 +139,7 @@ def price_from_orders(sell_orders: list[dict]) -> Price:
 
 
 class Market:
-    """Preise von warframe.market. Thread-sicher, mit Datei-Cache und Drosselung."""
+    """Prices from warframe.market. Thread-safe, with a file cache and throttling."""
 
     def __init__(self):
         raw = _cached_json("market_items.json", f"{MARKET_API}/items", ITEM_LIST_MAX_AGE)
@@ -160,11 +160,11 @@ class Market:
         return self._items.get(name.lower())
 
     def prime_parts(self) -> dict[str, str | None]:
-        """Alle handelbaren Prime-Teile, dazu gebaute Warframe-Teile.
+        """All tradeable prime parts, plus built Warframe parts.
 
-        Ergebnis: Name -> None für handelbare Teile, oder Name -> Name der Blaupause
-        für gebaute Teile (z. B. "Citrine Prime Chassis" aus "... Chassis Blueprint").
-        Gebaute Warframe-Teile sind nicht handelbar.
+        Result: name -> None for tradeable parts, or name -> blueprint name for
+        built parts (e.g. "Citrine Prime Chassis" from "... Chassis Blueprint").
+        Built Warframe parts are not tradeable.
         """
         parts: dict[str, str | None] = {}
         for item in self._items.values():
@@ -191,7 +191,7 @@ class Market:
         return Price(**entry) if entry else None
 
     def price(self, name: str, force: bool = False) -> Price | None:
-        """Preis holen. None, wenn das Teil nicht handelbar ist (z. B. Forma)."""
+        """Get a price. None if the part is not tradeable (e.g. Forma)."""
         item = self.item(name)
         if not item:
             return None
@@ -201,7 +201,7 @@ class Market:
             return cached
         for attempt in range(MARKET_RETRIES):
             if attempt:
-                time.sleep(1.5 * attempt)  # außerhalb der Sperre, andere Anfragen laufen weiter
+                time.sleep(1.5 * attempt)  # outside the lock, other requests continue
             with self._lock:
                 wait = self._last_request + MARKET_MIN_INTERVAL - time.monotonic()
                 if wait > 0:
@@ -225,5 +225,5 @@ class Market:
 
 
 def expected_value(rewards: list[Reward], values: dict[str, float | None]) -> float:
-    """Erwarteter Wert einer Öffnung (Summe aus Chance mal Wert)."""
+    """Expected value of one opening (sum of chance times value)."""
     return sum(r.chance / 100 * (values.get(r.name) or 0) for r in rewards)

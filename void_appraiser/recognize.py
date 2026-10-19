@@ -1,8 +1,7 @@
-"""Erkennt Belohnungsbildschirm und Ausrüsten-Dialog auf einem Bildschirmfoto.
+"""Recognizes the reward screen, equip dialog and inventory on a screenshot.
 
-Alle Bereiche sind relativ zur 16:9-Fläche des Spiels angegeben, damit sie
-bei jeder Auflösung passen. Ist das Bild breiter (Ultrawide), liegt die
-Oberfläche mittig.
+All regions are given relative to a 16:9 area at screen height, so they fit
+any resolution; see the anchor note below for wider screens.
 """
 
 from __future__ import annotations
@@ -16,26 +15,26 @@ import numpy as np
 
 from .logwatch import RelicEquipped
 
-# Bereiche: (x0, y0, x1, y1, Skalierung, Anker)
-# Warframe skaliert die Oberfläche nach der Bildhöhe. Auf breiteren Bildschirmen
-# (21:9, 32:9) bleibt sie nicht als 16:9-Block in der Mitte, sondern hängt an
-# den Rändern: die Kopfzeile links, Dialog und Karten mittig. Deshalb sind die
-# x-Werte Anteile einer gedachten 16:9-Fläche in Bildhöhe, die am Anker liegt.
+# Regions: (x0, y0, x1, y1, scale, anchor)
+# Warframe scales its interface with the screen height. On wider screens
+# (21:9, 32:9) it does not stay a centered 16:9 block but sticks to the
+# edges: the header on the left, dialog and cards in the center. So the
+# x values are fractions of an imaginary 16:9 area at screen height that sits at the anchor.
 LEFT, CENTER, RIGHT = "left", "center", "right"
-# Kopfzeile oben links, z. B. "VOID FISSURE/REWARDS" oder "VOID RELICS/REFINEMENT".
-# Nur Zeilenerkennung ohne Textsuche, sehr billig. Breit, weil Trupp-Symbole
-# davor den Text nach rechts schieben.
+# Header line top left, e.g. "VOID FISSURE/REWARDS" or "VOID RELICS/REFINEMENT".
+# Line recognition only, without text detection, very cheap. Wide, because squad
+# icons in front of it push the text to the right.
 HEADER_LINE = (0.04, 0.015, 0.52, 0.09, 0.5, LEFT)
 CARDS_REGION = (0.08, 0.36, 0.92, 0.465, 1.0, CENTER)
-# Text des Ausrüsten-Dialogs in der Bildmitte
+# Text of the equip dialog in the screen center
 DIALOG_REGION = (0.34, 0.40, 0.66, 0.52, 0.8, CENTER)
 
 SCREEN_REWARDS = "rewards"
 SCREEN_RELICS = "relics"
 SCREEN_INVENTORY = "inventory"
-# Relikt-Auswahl gibt es im Orbiter (REFINEMENT) und während Endlos-Missionen (SELECT RELIC).
-# Jede Kopfzeile besteht aus zwei Teilen, die beide (unscharf) vorkommen müssen.
-# So zählt z. B. "VOID FISSURES" (Navigation) nicht als Belohnungsbildschirm.
+# Relic selection exists in the orbiter (REFINEMENT) and during endless missions (SELECT RELIC).
+# Each header consists of parts that must all appear (fuzzily).
+# That way e.g. "VOID FISSURES" (navigation) does not count as the reward screen.
 _HEADERS = [
     (SCREEN_REWARDS, ("VOIDFISSURE", "REWARDS")),
     (SCREEN_RELICS, ("VOIDRELICS", "REFINEMENT")),
@@ -43,9 +42,9 @@ _HEADERS = [
     (SCREEN_INVENTORY, ("INVENTORY",)),
 ]
 
-# Unter der Kopfzeile des Inventars steht die Kategorie, z. B. "PRIME PARTS"
+# Below the inventory header is the category, e.g. "PRIME PARTS"
 CATEGORY_LINE = (0.035, 0.092, 0.17, 0.14, 1.0, LEFT)
-# Echte Kopfzeilen erreichen trotz OCR-Fehlern mindestens ~0,82, andere Bildschirme höchstens ~0,45
+# Real headers score at least ~0.82 despite OCR errors, other screens at most ~0.45
 HEADER_CUTOFF = 0.7
 
 MATCH_CUTOFF = 0.8
@@ -68,12 +67,12 @@ class TextBox:
 @dataclass(frozen=True)
 class RewardCard:
     name: str
-    x: float  # Mitte der Karte, relativ (0 bis 1) im Bildausschnitt
+    x: float  # center of the card, relative (0 to 1) within the cropped region
     confidence: float
 
 
 class Recognizer:
-    """Texterkennung (eigene Engine in ocr.py). Das Modell wird erst beim ersten Gebrauch geladen."""
+    """Text recognition (own engine in ocr.py). The model is loaded on first use."""
 
     def __init__(self, threads: int = 1):
         self.threads = threads
@@ -87,7 +86,7 @@ class Recognizer:
         return self._engine
 
     def read_line(self, img: np.ndarray) -> TextBox:
-        """Liest eine einzelne Textzeile, ohne erst Text zu suchen (schnell)."""
+        """Reads a single line of text without text detection (fast)."""
         text, score = self._get().read_line(img)
         return TextBox(text.strip(), 0.0, 0.0, 1.0, 1.0, score)
 
@@ -100,8 +99,8 @@ class Recognizer:
 
 
 def ui_area(width: int, height: int) -> tuple[int, int, int, int]:
-    """Mittige 16:9-Fläche (x, y, b, h) in Bildhöhe. Bei schmaleren Bildern (16:10)
-    in Bildbreite und vertikal mittig."""
+    """Centered 16:9 area (x, y, w, h) at image height. For narrower images (16:10)
+    at image width and vertically centered."""
     if width / height > 16 / 9 + 0.01:
         w = round(height * 16 / 9)
         return ((width - w) // 2, 0, w, height)
@@ -112,7 +111,7 @@ def ui_area(width: int, height: int) -> tuple[int, int, int, int]:
 
 
 def region_rect(width: int, height: int, region: tuple) -> tuple[int, int, int, int]:
-    """Bereich (x, y, b, h) in Pixeln für ein Bild der Größe width × height."""
+    """Region (x, y, w, h) in pixels for an image of size width × height."""
     x0, y0, x1, y1 = region[:4]
     anchor = region[5] if len(region) > 5 else CENTER
     ax, ay, aw, ah = ui_area(width, height)
@@ -136,11 +135,11 @@ def crop(img: np.ndarray, region: tuple) -> np.ndarray:
     return np.ascontiguousarray(part)
 
 
-# --- Auswertung der gelesenen Texte (ohne OCR testbar) --------------------
+# --- Evaluating the recognized text (testable without OCR) ---------------
 
 
 def _plain(text: str) -> str:
-    """Akzente entfernen, die die OCR manchmal liest (z. B. "FLAWLÉSS")."""
+    """Remove accents the OCR sometimes reads (e.g. "FLAWLÉSS")."""
     return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
 
 
@@ -149,7 +148,7 @@ def _squash(text: str) -> str:
 
 
 def _best_window_ratio(text: str, target: str) -> float:
-    """Wie gut kommt target irgendwo in text vor (0 bis 1), tolerant gegen OCR-Fehler."""
+    """How well target appears anywhere in text (0 to 1), tolerant of OCR errors."""
     if not text:
         return 0.0
     n = len(target)
@@ -158,7 +157,7 @@ def _best_window_ratio(text: str, target: str) -> float:
 
 
 def classify_header(boxes: list[TextBox]) -> str | None:
-    """Welcher Bildschirm ist offen? SCREEN_REWARDS, SCREEN_RELICS oder None."""
+    """Which screen is open? SCREEN_REWARDS, SCREEN_RELICS, SCREEN_INVENTORY or None."""
     text = _squash(" ".join(b.text for b in boxes))
     score, kind = max((min(_best_window_ratio(text, part) for part in parts), kind) for kind, parts in _HEADERS)
     return kind if score >= HEADER_CUTOFF else None
@@ -178,7 +177,7 @@ _COST_TO_REFINEMENT = {25: "Exceptional", 50: "Flawless", 100: "Radiant"}
 
 
 def parse_equip_dialog(boxes: list[TextBox]) -> RelicEquipped | None:
-    # Zeilen in Lesereihenfolge zusammenfügen, der Dialogtext kann umbrechen
+    # Join lines in reading order, the dialog text can wrap
     lines = sorted(boxes, key=lambda b: (round(b.y0, 2), b.x0))
     text = _plain(" ".join(b.text for b in lines))
     m = _DIALOG.search(text)
@@ -196,7 +195,7 @@ def parse_equip_dialog(boxes: list[TextBox]) -> RelicEquipped | None:
 
 
 class NameMatcher:
-    """Ordnet gelesene Texte den bekannten Teilenamen zu (OCR macht Fehler)."""
+    """Maps recognized text to known part names (the OCR makes mistakes)."""
 
     def __init__(self, names: list[str]):
         self._by_key = {_squash(n): n for n in names}
@@ -211,12 +210,12 @@ class NameMatcher:
         found = difflib.get_close_matches(key, self._keys, n=1, cutoff=MATCH_CUTOFF)
         if not found:
             return None
-        # Ein Bruchstück (z. B. nur die zweite Zeile "Chassis Blueprint") darf nicht zu
-        # einem viel längeren Namen passen
+        # A fragment (e.g. only the second line "Chassis Blueprint") must not match
+        # a much longer name
         if len(key) < 0.8 * len(found[0]):
             return None
-        # Der Name vor "PRIME" (Warframe oder Waffe) muss ebenfalls passen, sonst entscheidet
-        # bei unleserlichem Anfang nur die Länge (z. B. "..IME CHASSIS BLUEPRINT" -> Nyx)
+        # The name before "PRIME" (Warframe or weapon) must match as well, otherwise an
+        # unreadable beginning lets the length decide (e.g. "..IME CHASSIS BLUEPRINT" -> Nyx)
         base = found[0].split("PRIME")[0] if "PRIME" in found[0] else ""
         if base and _best_window_ratio(key[: len(base) + 2], base) < 0.6:
             return None
@@ -225,8 +224,8 @@ class NameMatcher:
 
 
 def _line_below(box: TextBox, other: TextBox) -> bool:
-    """Ist other die nächste Zeile desselben Namens (direkt darunter, horizontal überlappend)?
-    Die gefundenen Kästen sind etwas vergrößert und überlappen sich deshalb oft leicht."""
+    """Is other the next line of the same name (directly below, overlapping horizontally)?
+    Detected boxes are slightly enlarged and therefore often overlap a little."""
     height = box.y1 - box.y0
     return (
         other.y0 > box.y0 + 0.3 * height
@@ -237,7 +236,7 @@ def _line_below(box: TextBox, other: TextBox) -> bool:
 
 
 def _name_options(boxes: list[TextBox], i: int) -> list[tuple[str, TextBox]]:
-    """Mögliche Namen ab Zeile i: die Zeile allein, mit der nächsten und mit zwei weiteren."""
+    """Possible names starting at line i: the line alone, with the next one and with two more."""
     box = boxes[i]
     options = [(box.text, box)]
     for second in boxes[i + 1 :]:
@@ -250,7 +249,7 @@ def _name_options(boxes: list[TextBox], i: int) -> list[tuple[str, TextBox]]:
 
 
 def match_reward_cards(boxes: list[TextBox], matcher: NameMatcher) -> list[RewardCard]:
-    """Findet die Teilenamen auf den Karten, auch wenn sie zweizeilig sind."""
+    """Finds the part names on the cards, even when they span two lines."""
     boxes = sorted(boxes, key=lambda b: (b.y0, b.x0))
     candidates: list[RewardCard] = []
     for i, box in enumerate(boxes):
@@ -258,7 +257,7 @@ def match_reward_cards(boxes: list[TextBox], matcher: NameMatcher) -> list[Rewar
         for text, cx in options:
             if found := matcher.match(text):
                 candidates.append(RewardCard(found[0], cx, found[1]))
-    # Pro Karte (Position) nur den besten Treffer behalten
+    # Keep only the best match per card (position)
     candidates.sort(key=lambda c: -c.confidence)
     cards: list[RewardCard] = []
     for cand in candidates:
@@ -267,7 +266,7 @@ def match_reward_cards(boxes: list[TextBox], matcher: NameMatcher) -> list[Rewar
     return sorted(cards, key=lambda c: c.x)
 
 
-# --- Inventar (Prime Parts) -----------------------------------------------
+# --- Inventory (prime parts) ----------------------------------------------
 
 
 def is_prime_parts(box: TextBox) -> bool:
@@ -275,8 +274,8 @@ def is_prime_parts(box: TextBox) -> bool:
 
 
 def inventory_grid_rect(width: int, height: int) -> tuple[int, int, int, int]:
-    """Bereich mit den Teile-Kacheln. Das Raster beginnt links und reicht bis zur
-    Verkaufs-Spalte am rechten Rand; auf breiten Bildschirmen hat es mehr Spalten."""
+    """Region with the part tiles. The grid starts on the left and reaches the sell
+    column on the right edge; wide screens have more columns."""
     ax, ay, aw, ah = ui_area(width, height)
     x0 = int(0.03 * ah)
     x1 = width - int(0.56 * ah)
@@ -287,8 +286,8 @@ def inventory_grid_rect(width: int, height: int) -> tuple[int, int, int, int]:
 class GridItem:
     name: str
     count: int
-    x: float  # Mitte des Namens in Pixeln
-    y: float  # Oberkante des Namens in Pixeln
+    x: float  # center of the name in pixels
+    y: float  # top of the name in pixels
     confidence: float
 
 
@@ -296,16 +295,16 @@ _BADGE = re.compile(r"^\W{0,2}\s*(\d{1,3})$")
 
 
 def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) -> list[GridItem]:
-    """Teile im Inventar-Raster erkennen, samt Anzahl aus den kleinen Abzeichen ("✓2").
+    """Recognize parts in the inventory grid, including the count from the small badges ("✓2").
 
-    boxes in Pixeln, unit = Bildhöhe der Spieloberfläche (alle Abstände skalieren damit).
+    boxes in pixels, unit = height of the game interface (all distances scale with it).
     """
     badges = []
     texts = []
     for box in boxes:
         m = _BADGE.match(_plain(box.text).strip())
         if m:
-            if int(m[1]) >= 2:  # einzelne Teile haben kein Abzeichen
+            if int(m[1]) >= 2:  # single parts have no badge
                 badges.append((box, int(m[1])))
         else:
             texts.append(box)
@@ -317,14 +316,14 @@ def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) ->
             if found := matcher.match(text):
                 cx = (min(box.x0, last.x0) + max(box.x1, last.x1)) / 2
                 candidates.append((found[1], len(text), found[0], cx, box.y0))
-    # Pro Kachel nur den besten (bei Gleichstand den längsten) Treffer
+    # Only the best match per tile (the longest one on a tie)
     candidates.sort(key=lambda c: (-c[0], -c[1]))
     items: list[list] = []
     for conf, _, name, cx, y in candidates:
         if all(abs(cx - it[1]) > 0.09 * unit or abs(y - it[2]) > 0.09 * unit for it in items):
             items.append([name, cx, y, conf, 1])
 
-    # Abzeichen sitzen oben links in der Kachel, etwa 0,1 × Höhe über dem Namen
+    # Badges sit at the top left of the tile, about 0.1 × height above the name
     for badge, count in badges:
         best = None
         for it in items:
@@ -342,11 +341,12 @@ def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) ->
 
 
 def read_inventory(frame: np.ndarray, recognizer: "Recognizer", matcher: NameMatcher) -> list[GridItem]:
-    """Sichtbare Teile im Inventar lesen (aufwendig, nur auf Tastendruck).
+    """Read the visible parts in the inventory (expensive, only on a key press).
 
-    Zweiter Durchgang: Steht über einem Namensrest ("Receiver") kein erkannter Text,
-    wird die Zeile darüber gezielt gelesen. Die erste Zeile liegt oft auf dem
-    Bild des Teils und wird bei der Textsuche leicht übersehen.
+    Second pass: if no text was recognized above a name fragment ("Receiver"), the
+    line above is read directly. The first line often lies on the picture of the
+    part and is easily missed by the text detection. The same goes for a missing
+    second line below a first line.
     """
     height, width = frame.shape[:2]
     unit = ui_area(width, height)[3]
@@ -373,10 +373,10 @@ def read_inventory(frame: np.ndarray, recognizer: "Recognizer", matcher: NameMat
         line_h = box.y1 - box.y0
         has_prime = _best_window_ratio(_squash(box.text), "PRIME") >= 0.8
         if not has_prime and not any(_line_below(other, box) for other in boxes):
-            # Namensrest ohne erste Zeile: darüber lesen
+            # Name fragment without first line: read above
             read_at(box.cx, box.y0 - 0.95 * line_h, box.y0 + 0.15 * line_h)
         elif has_prime and not any(_line_below(box, other) for other in boxes):
-            # Erste Zeile ohne zweite: darunter lesen, falls der Name unvollständig sein kann
+            # First line without second: read below in case the name may be incomplete
             exact = matcher.match(box.text)
             complete = exact and exact[1] == 1.0 and not matcher.match(exact[0] + " Blueprint")
             if not complete:

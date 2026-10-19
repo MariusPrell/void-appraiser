@@ -1,41 +1,46 @@
-# Änderungen
+# Changelog
+
+## 0.9.0
+- The interface is now in **English** by default; **German** can be selected under File → Settings.
+- Code, documentation and release notes are now in English.
+- Existing settings are kept; key names from older versions are converted automatically.
 
 ## 0.8.0
-- Neuer Name: **Void Appraiser** (vorher „Warframe Helper“, den Namen nutzen bereits andere Projekte).
-- Einstellungen, Inventarliste und Cache werden beim ersten Start automatisch übernommen.
+- New name: **Void Appraiser** (previously "Warframe Helper", a name already used by other projects).
+- Settings, inventory list and cache are taken over automatically on the first start.
 
 ## 0.7.0
-- Neuer Tab **Inventar**: Unter Inventar → Prime Parts erscheint oben ein roter Hinweis. Mit Einfg werden alle sichtbaren Teile samt Anzahl eingelesen, nach dem Scrollen ergänzt ein weiterer Druck die Liste.
-- Pro Teil: Platin, Ducats und **Ducats pro Platin** (ab etwa 10 lohnt sich Baro Ki'Teer), dazu Summen. Die Anzahl ist per Doppelklick änderbar, gebaute Warframe-Teile werden als nicht handelbar markiert.
-- Neuer Tab **Drop-Suche** in den offiziellen Drop-Tabellen, auch nach Fundort. Doppelklick auf ein Relikt zeigt dessen Inhalt und Wert.
+- New **Inventory** tab: under Inventory → Prime Parts a red hint appears at the top. Insert reads all visible parts including their count; after scrolling, another press extends the list.
+- Per part: platinum, ducats and **ducats per platinum** (from about 10, Baro Ki'Teer is worth it), plus totals. Counts can be edited with a double-click; built Warframe parts are marked as not tradeable.
+- New **Drop search** tab in the official drop tables, also by location. Double-click a relic to see its contents and value.
 
 ## 0.6.0
-- Deutlich kleinere Pakete: Windows 94 statt 155 MB, Linux 115 statt 203 MB.
-- Eigene, schlanke Texterkennung (gleiche Modelle, ohne OpenCV).
-- Bildschirme werden zuverlässiger erkannt.
+- Much smaller packages: Windows 94 instead of 155 MB, Linux 115 instead of 203 MB.
+- Own lean text recognition (same models, without OpenCV).
+- More reliable screen detection.
 
 ## 0.5.0
-- Neuer Tab **Overview**: Tageszeiten (Plains of Eidolon, Orb Vallis, Cambion Drift, Zariman, Duviri), Void Fissures mit Filter für Normal, Steel Path und Void Storm sowie Alerts, jeweils mit Restzeit.
-- Bei erkanntem Dialog oder Belohnungsbildschirm springt das Fenster automatisch zur Relikt-Ansicht.
+- New **Overview** tab: day cycles (Plains of Eidolon, Orb Vallis, Cambion Drift, Zariman, Duviri), void fissures with a filter for normal, Steel Path and Void Storm, and alerts, each with time left.
+- When a dialog or reward screen is detected, the window switches to the relic view automatically.
 
 ## 0.4.3
-- Unterstützung für Ultrawide (21:9, 32:9): Die Erkennung folgt der Anordnung der Spieloberfläche an den Bildrändern.
+- Ultrawide support (21:9, 32:9): detection follows the way the game interface sticks to the screen edges.
 
 ## 0.4.2
-- Relikt-Auswahl in Endlos-Missionen (Survival usw.) wird erkannt.
-- Das Overlay auf dem Belohnungsbildschirm flackert nicht mehr.
+- Relic selection during endless missions (survival etc.) is detected.
+- The overlay on the reward screen no longer flickers.
 
 ## 0.4.1
-- Preise werden bei Fehlern bis zu dreimal abgefragt, fehlende Preise sind gekennzeichnet („Preise werden geladen …“).
+- Prices are requested up to three times on errors; missing prices are marked ("Loading prices …").
 
 ## 0.4.0
-- Erste Pakete für Windows und Linux, MIT-Lizenz.
+- First packages for Windows and Linux, MIT license.
 
 ## 0.3.0
-- Overlay über dem Spiel: Preise unter den Belohnungskarten, Kurzinfo zum Relikt beim Ausrüsten-Dialog. Klicks gehen durch, das Spiel behält den Fokus.
+- Overlay on top of the game: prices below the reward cards, relic info at the equip dialog. Clicks pass through and the game keeps the focus.
 
 ## 0.2.0
-- Bildschirmerkennung für Belohnungsbildschirm und Ausrüsten-Dialog, Taste für den manuellen Scan, Einstellungen.
+- Screen detection for the reward screen and the equip dialog, key for a manual scan, settings.
 
 ## 0.1.0
-- Relikt-Vorschau aus dem Warframe-Log mit Preisen von warframe.market.
+- Relic preview from the Warframe log with prices from warframe.market.

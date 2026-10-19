@@ -1,13 +1,13 @@
-"""Schaut regelmäßig (oder auf Tastendruck) auf den Bildschirm.
+"""Looks at the screen regularly (or on a key press).
 
-Ablauf pro Durchgang:
-1. Nur weitermachen, wenn Warframe im Vordergrund ist (automatischer Modus).
-2. Kopfzeile lesen (billig).
-3. "VOID FISSURE/REWARDS": die Karten lesen.
-4. "VOID RELICS/REFINEMENT" (Relikt-Auswahl): die Bildmitte nach dem Ausrüsten-Dialog absuchen.
-   Beim manuellen Scan wird der Dialog immer gesucht.
-5. "INVENTORY" mit Kategorie "PRIME PARTS": Hinweis anzeigen. Das Raster wird nur beim
-   manuellen Scan (Taste) gelesen, weil das aufwendig ist.
+Each pass:
+1. Only continue while Warframe is in the foreground (automatic mode).
+2. Read the header line (cheap).
+3. "VOID FISSURE/REWARDS": read the cards.
+4. "VOID RELICS/REFINEMENT" (relic selection): search the screen center for the equip dialog.
+   A manual scan always looks for the dialog.
+5. "INVENTORY" with category "PRIME PARTS": show a hint. The grid is only read on a
+   manual scan (key), because that is expensive.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import capture
+from .i18n import tr
 from .logwatch import RelicEquipped
 from .recognize import (
     CARDS_REGION,
@@ -41,8 +42,8 @@ from .recognize import (
 )
 
 
-# So viele Scans in Folge ohne Kopfzeile, bis der Belohnungsbildschirm als geschlossen gilt
-# (bei offenem Bildschirm wird alle 0,75 s gescannt, also etwa 2 s)
+# Number of consecutive scans without the header until the reward screen counts as closed
+# (while it is open we scan every 0.75 s, so about 2 s)
 REWARDS_GONE_AFTER = 3
 
 
@@ -58,14 +59,14 @@ class RewardsGone:
 
 @dataclass(frozen=True)
 class DialogDetected:
-    """Ausrüsten-Dialog auf dem Bildschirm (im Gegensatz zum verspäteten Log)."""
+    """Equip dialog on screen (as opposed to the delayed log)."""
 
     relic: RelicEquipped
 
 
 @dataclass(frozen=True)
 class InventoryVisible:
-    """Inventar mit "PRIME PARTS" ist offen (True) oder wieder zu (False)."""
+    """Inventory with "PRIME PARTS" is open (True) or closed again (False)."""
 
     visible: bool
 
@@ -84,7 +85,7 @@ class ScannerStatus:
 class ScannerSettings:
     auto: bool = True
     interval: float = 1.5
-    monitor: str = ""  # leer = automatisch (Warframe-Fenster)
+    monitor: str = ""  # empty = automatic (Warframe window)
     debug_dir: Path | None = None
 
 
@@ -94,9 +95,9 @@ class Scanner:
         self.on_event = on_event
         self.settings = settings
         self.recognizer = Recognizer(threads=1)
-        # Für das große Inventar-Raster mehr Threads, es läuft nur auf Tastendruck
+        # More threads for the large inventory grid, it only runs on a key press
         self.big_recognizer = Recognizer(threads=4)
-        self.inventory_matcher: NameMatcher | None = None  # kommt von außen, sobald Marktdaten da sind
+        self.inventory_matcher: NameMatcher | None = None  # set from outside once market data is loaded
         self._inventory_visible = False
         self._inventory_misses = 0
         self._wake = threading.Event()
@@ -117,7 +118,7 @@ class Scanner:
         self._wake.set()
 
     def scan_now(self) -> None:
-        """Einmal sofort scannen, auch wenn die Automatik aus ist."""
+        """Scan once right away, even if automatic detection is off."""
         self._manual = True
         self._wake.set()
 
@@ -137,11 +138,11 @@ class Scanner:
             if manual or self.settings.auto:
                 try:
                     self._scan_once(manual)
-                except Exception as exc:  # Erkennung darf das Programm nie beenden
-                    self._status(f"Erkennung: Fehler ({exc})")
+                except Exception as exc:  # detection must never end the program
+                    self._status(tr("Detection: error ({error})", error=exc))
             else:
-                self._status("Erkennung: automatisch aus")
-            # Bei offenem Belohnungsbildschirm öfter schauen, Karten kommen nacheinander
+                self._status(tr("Detection: automatic off"))
+            # Look more often while the reward screen is open, cards appear one after another
             wait = 0.75 if self._rewards_visible else self.settings.interval
             self._wake.wait(wait)
             self._wake.clear()
@@ -153,23 +154,23 @@ class Scanner:
                 if mon.name == self.settings.monitor:
                     window = be.game_window()
                     if not manual and window is not None and not window.focused:
-                        self._status("Erkennung: wartet (Warframe nicht im Vordergrund)")
+                        self._status(tr("Detection: waiting (Warframe not in the foreground)"))
                         return None
                     return mon.rect
-            self._status(f"Erkennung: Monitor {self.settings.monitor} nicht gefunden")
+            self._status(tr("Detection: monitor {name} not found", name=self.settings.monitor))
             return None
         window = be.game_window()
         if window is None:
             mons = be.monitors()
             if not mons:
-                self._status("Erkennung: kein Monitor gefunden")
+                self._status(tr("Detection: no monitor found"))
                 return None
             if not manual:
-                self._status("Erkennung: Warframe-Fenster nicht gefunden")
+                self._status(tr("Detection: Warframe window not found"))
                 return None
             return mons[0].rect
         if not window.focused and not manual:
-            self._status("Erkennung: wartet (Warframe nicht im Vordergrund)")
+            self._status(tr("Detection: waiting (Warframe not in the foreground)"))
             return None
         return window.rect
 
@@ -179,7 +180,7 @@ class Scanner:
             self._rewards_missed()
             self._inventory_missed()
             return
-        self._status("Erkennung: aktiv")
+        self._status(tr("Detection: active"))
         frame = capture.backend().grab(rect)
         started = time.monotonic()
 
@@ -189,17 +190,17 @@ class Scanner:
             self._rewards_visible = True
             self._rewards_misses = 0
             names = tuple(c.name for c in cards)
-            # Ein Scan mit weniger Karten (OCR hat eine verpasst) ersetzt keine vollständige Liste.
-            # Neue Karten kommen bei Trupps nacheinander dazu, deshalb sind mehr Karten erlaubt.
+            # A scan with fewer cards (OCR missed one) does not replace a complete list.
+            # In a squad, new cards appear one after another, so more cards are allowed.
             if names and names != self._last_cards and len(names) >= len(self._last_cards):
                 self._last_cards = names
                 self.on_event(RewardsDetected(tuple(cards)))
-                self._debug_save(frame, "belohnung", True)
+                self._debug_save(frame, "rewards", True)
             elif manual:
-                self._debug_save(frame, "belohnung", True)
+                self._debug_save(frame, "rewards", True)
             return
         if self._rewards_missed():
-            return  # Belohnungsbildschirm vermutlich noch offen, nur die Kopfzeile nicht gelesen
+            return  # reward screen probably still open, only the header was not read
 
         if screen == SCREEN_INVENTORY:
             category = self.recognizer.read_line(crop(frame, CATEGORY_LINE))
@@ -214,17 +215,17 @@ class Scanner:
 
         relic = parse_equip_dialog(self.recognizer.read(crop(frame, DIALOG_REGION)))
         if relic:
-            # Derselbe Dialog bleibt mehrere Durchgänge offen: nur einmal melden
+            # The same dialog stays open for several passes: report it only once
             if not self._last_relic or self._last_relic[0] != relic or time.monotonic() - self._last_relic[1] > 30:
                 self.on_event(DialogDetected(relic))
                 self._debug_save(frame, "dialog", True)
             self._last_relic = (relic, time.monotonic())
         elif manual:
-            self._debug_save(frame, "manuell", True)
+            self._debug_save(frame, "manual", True)
         if manual:
-            self._status(f"Erkennung: manueller Scan fertig ({(time.monotonic() - started) * 1000:.0f} ms)")
+            self._status(tr("Detection: manual scan done ({ms} ms)", ms=f"{(time.monotonic() - started) * 1000:.0f}"))
 
-    # --- Inventar -----------------------------------------------------------
+    # --- Inventory ----------------------------------------------------------
 
     def _set_inventory_visible(self, visible: bool) -> None:
         self._inventory_misses = 0
@@ -233,7 +234,7 @@ class Scanner:
             self.on_event(InventoryVisible(visible))
 
     def _inventory_missed(self) -> None:
-        # Wie beim Belohnungsbildschirm: erst nach mehreren Fehlschlägen ausblenden
+        # As with the reward screen: only hide after several misses in a row
         if self._inventory_visible:
             self._inventory_misses += 1
             if self._inventory_misses >= REWARDS_GONE_AFTER:
@@ -241,19 +242,25 @@ class Scanner:
 
     def _scan_inventory(self, frame, started: float) -> None:
         if self.inventory_matcher is None:
-            self._status("Erkennung: Marktdaten fehlen noch, Inventar später erneut einlesen")
+            self._status(tr("Detection: market data still missing, scan the inventory again later"))
             return
-        self._status("Erkennung: lese Inventar …")
+        self._status(tr("Detection: reading inventory …"))
         items = read_inventory(frame, self.big_recognizer, self.inventory_matcher)
         self.on_event(InventoryScanned(tuple(items)))
-        self._debug_save(frame, "inventar", True)
-        self._status(f"Erkennung: {len(items)} Teile eingelesen ({(time.monotonic() - started) * 1000:.0f} ms)")
+        self._debug_save(frame, "inventory", True)
+        self._status(
+            tr(
+                "Detection: {count} parts read ({ms} ms)",
+                count=len(items),
+                ms=f"{(time.monotonic() - started) * 1000:.0f}",
+            )
+        )
 
     def _rewards_missed(self) -> bool:
-        """Kopfzeile nicht erkannt. Erst nach mehreren Fehlschlägen in Folge gilt der
-        Belohnungsbildschirm als geschlossen, sonst flackert das Overlay.
+        """Header not recognized. Only after several misses in a row does the reward
+        screen count as closed, otherwise the overlay flickers.
 
-        Gibt True zurück, solange der Bildschirm noch als offen gilt.
+        Returns True while the screen still counts as open.
         """
         if not self._rewards_visible:
             return False

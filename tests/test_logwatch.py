@@ -57,12 +57,12 @@ def test_watcher_reports_last_relic_then_follows(tmp_path):
     watcher = LogWatcher(log, events.append, poll=0.05)
     watcher.start()
     _wait_for(events, 1)
-    # Vom alten Log nur das letzte Relikt, keine alten Bildschirm-Ereignisse
+    # From the old log only the last relic, no past screen events
     assert events == [RelicEquipped("Axi", "C12", "Radiant")]
 
     with open(log, "a") as f:
         f.write(OPENED + "\n")
-        f.write(CLOSED[:30])  # halbe Zeile: noch nicht melden
+        f.write(CLOSED[:30])  # half a line: do not report yet
     _wait_for(events, 2)
     time.sleep(0.2)
     assert events[1:] == [RewardScreenOpened()]
@@ -72,7 +72,7 @@ def test_watcher_reports_last_relic_then_follows(tmp_path):
     _wait_for(events, 3)
     assert events[2:] == [RewardScreenClosed()]
 
-    # Neues Spiel: Log wird neu angelegt und ist kürzer
+    # New game: the log is recreated and shorter
     log.write_text(EQUIP_INTACT + "\n")
     _wait_for(events, 4)
     watcher.stop()

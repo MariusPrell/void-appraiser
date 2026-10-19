@@ -1,4 +1,4 @@
-"""Scanner-Logik ohne Bildschirm: Kopfzeile und Karten werden vorgegeben."""
+"""Scanner logic without a screen: header and cards are given."""
 
 import numpy as np
 
@@ -15,7 +15,7 @@ class FakeRecognizer:
         return TextBox(self.header, 0, 0, 1, 1)
 
     def read(self, img):
-        # Karten nebeneinander, so wie match_reward_cards sie erwartet
+        # Cards side by side, as match_reward_cards expects them
         return [TextBox(name, 0.2 * i, 0.2, 0.2 * i + 0.15, 0.4) for i, name in enumerate(self.cards)]
 
 
@@ -50,7 +50,7 @@ def test_single_header_miss_does_not_close_rewards(monkeypatch):
     rec = scanner.recognizer
     rec.header, rec.cards = "VOID FISSURE/REWARDS", ["Lex Prime Receiver", "Zylok Prime Barrel"]
     scanner._scan_once(False)
-    rec.header = "VO1D F"  # Kopfzeile einmal nicht lesbar
+    rec.header = "VO1D F"  # header unreadable once
     scanner._scan_once(False)
     scanner._scan_once(False)
     rec.header = "VOID FISSURE/REWARDS"
@@ -74,9 +74,9 @@ def test_fewer_cards_do_not_replace_full_list(monkeypatch):
     rec = scanner.recognizer
     rec.header, rec.cards = "VOID FISSURE/REWARDS", ["Lex Prime Receiver", "Zylok Prime Barrel"]
     scanner._scan_once(False)
-    rec.cards = ["Lex Prime Receiver"]  # OCR hat eine Karte verpasst
+    rec.cards = ["Lex Prime Receiver"]  # OCR missed a card
     scanner._scan_once(False)
-    rec.cards = ["Lex Prime Receiver", "Zylok Prime Barrel", "Kogake Prime Boot"]  # dritte Karte kommt dazu
+    rec.cards = ["Lex Prime Receiver", "Zylok Prime Barrel", "Kogake Prime Boot"]  # third card appears
     scanner._scan_once(False)
     detected = [e for e in events if isinstance(e, sc.RewardsDetected)]
     assert [len(e.cards) for e in detected] == [2, 3]

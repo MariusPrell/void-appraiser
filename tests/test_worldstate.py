@@ -21,11 +21,11 @@ def test_expired_entries_are_dropped():
     assert ws.fissures == [] and ws.alerts == []
 
 
-def test_cycles_translated():
+def test_cycles():
     ws = parse(RAW, NOW)
     places = {c.place: c.state for c in ws.cycles}
-    assert places["Plains of Eidolon"] in ("Tag", "Nacht")
-    assert places["Orb Vallis"] in ("Warm", "Kalt")
+    assert places["Plains of Eidolon"] in ("Day", "Night")
+    assert places["Orb Vallis"] in ("Warm", "Cold")
     assert "Duviri" in places
 
 
@@ -38,4 +38,4 @@ def test_time_left():
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     assert time_left(now + timedelta(hours=1, minutes=5), now) == "1h 05m"
     assert time_left(now + timedelta(minutes=4, seconds=9), now) == "4m 09s"
-    assert time_left(now - timedelta(seconds=1), now) == "abgelaufen"
+    assert time_left(now - timedelta(seconds=1), now) == "expired"

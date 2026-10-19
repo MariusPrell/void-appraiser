@@ -1,10 +1,10 @@
-"""Erzeugt THIRD-PARTY-LICENSES.txt für die fertigen Pakete.
+"""Generates THIRD-PARTY-LICENSES.txt for the built packages.
 
-Geht von "void-appraiser" aus alle Laufzeit-Abhängigkeiten durch (ohne
-Extras wie pytest) und sammelt Name, Version, Lizenz, Webseite und die
-mitgelieferten Lizenztexte.
+Walks all runtime dependencies starting from "void-appraiser" (without extras
+like pytest) and collects name, version, license, homepage and the bundled
+license texts.
 
-Aufruf: python packaging/licenses.py AUSGABEDATEI
+Usage: python packaging/licenses.py OUTPUT_FILE
 """
 
 from __future__ import annotations
@@ -17,14 +17,14 @@ from pathlib import Path
 ROOT = "void-appraiser"
 LICENSE_FILE = re.compile(r"(LICEN[CS]E|COPYING|NOTICE|AUTHORS)", re.IGNORECASE)
 
-# Pakete ohne eigene Lizenzdateien: Hinweis von Hand
+# Packages without their own license files: manual note
 EXTRA_NOTES = {
     "pyside6": (
-        "Qt for Python (PySide6, shiboken6) und die enthaltenen Qt-Bibliotheken stehen unter der "
+        "Qt for Python (PySide6, shiboken6) and the included Qt libraries are licensed under the "
         "GNU Lesser General Public License v3 (LGPL-3.0).\n"
-        "Lizenztext: https://www.gnu.org/licenses/lgpl-3.0.txt\n"
-        "Quellcode: https://code.qt.io/ und https://download.qt.io/official_releases/QtForPython/\n"
-        "Die Qt-Bibliotheken liegen als eigene Dateien im Programmordner und können ausgetauscht werden."
+        "License text: https://www.gnu.org/licenses/lgpl-3.0.txt\n"
+        "Source code: https://code.qt.io/ and https://download.qt.io/official_releases/QtForPython/\n"
+        "The Qt libraries are separate files in the program folder and can be replaced."
     ),
 }
 
@@ -36,7 +36,7 @@ def _norm(name: str) -> str:
 def _requirements(dist) -> list[str]:
     names = []
     for req in dist.requires or []:
-        # Nur Abhängigkeiten ohne "extra"-Bedingung, Plattform-Bedingungen bleiben drin
+        # Only dependencies without an "extra" marker; platform markers are kept
         if "extra ==" in req.replace("extra==", "extra =="):
             continue
         names.append(re.split(r"[\s;<>=!~\[(]", req, maxsplit=1)[0])
@@ -54,7 +54,7 @@ def collect() -> list:
         try:
             dist = distribution(name)
         except PackageNotFoundError:
-            continue  # z. B. Plattform-Abhängigkeit, die hier nicht installiert ist
+            continue  # e.g. a platform dependency not installed here
         seen[key] = dist
         todo.extend(_requirements(dist))
     seen.pop(_norm(ROOT), None)
@@ -63,36 +63,36 @@ def collect() -> list:
 
 def render(dists: list) -> str:
     out = [
-        "Void Appraiser – Lizenzen der mitgelieferten Fremdsoftware",
+        "Void Appraiser – licenses of bundled third-party software",
         "=" * 60,
         "",
-        "Python selbst steht unter der Python Software Foundation License (https://docs.python.org/3/license.html).",
+        "Python itself is licensed under the Python Software Foundation License (https://docs.python.org/3/license.html).",
         "",
     ]
-    # OCR-Modelle (PaddleOCR, Apache-2.0) liegen als Dateien bei, nicht als Python-Paket
+    # OCR models (PaddleOCR, Apache-2.0) are bundled as files, not as a Python package
     models = Path(__file__).parent.parent / "void_appraiser" / "models"
     for name in ("README.md", "MODEL_LICENSES.md", "LICENSE-Apache-2.0.txt"):
         path = models / name
         if path.is_file():
-            out += ["-" * 60, f"OCR-Modelle: {name}", "", path.read_text(encoding="utf-8").strip(), ""]
+            out += ["-" * 60, f"OCR models: {name}", "", path.read_text(encoding="utf-8").strip(), ""]
     for dist in dists:
         meta = dist.metadata
         license_name = meta.get("License-Expression") or ""
         if not license_name:
             classifiers = [c.split(" :: ")[-1] for c in meta.get_all("Classifier") or [] if c.startswith("License ::")]
             short = (meta.get("License") or "").strip().splitlines()
-            license_name = ", ".join(classifiers) or (short[0] if short else "siehe Lizenztext")
+            license_name = ", ".join(classifiers) or (short[0] if short else "see license text")
         homepage = meta.get("Home-page") or ""
         for url in meta.get_all("Project-URL") or []:
             homepage = homepage or url.split(",", 1)[-1].strip()
-        out += ["-" * 60, f"{meta['Name']} {dist.version}", f"Lizenz: {license_name}"]
+        out += ["-" * 60, f"{meta['Name']} {dist.version}", f"License: {license_name}"]
         if homepage:
-            out.append(f"Webseite: {homepage}")
+            out.append(f"Homepage: {homepage}")
         note = EXTRA_NOTES.get(_norm(meta["Name"]))
         if note:
             out += ["", note]
         for file in dist.files or []:
-            # Lizenztexte aus den Paket-Metadaten (*.dist-info, auch dist-info/licenses/)
+            # License texts from the package metadata (*.dist-info, also dist-info/licenses/)
             if ".dist-info" in str(file) and (LICENSE_FILE.search(file.name) or file.parent.name == "licenses"):
                 try:
                     text = file.locate().read_text(encoding="utf-8", errors="replace").strip()
@@ -108,4 +108,4 @@ if __name__ == "__main__":
     target = Path(sys.argv[1] if len(sys.argv) > 1 else "THIRD-PARTY-LICENSES.txt")
     dists = collect()
     target.write_text(render(dists), encoding="utf-8")
-    print(f"{len(dists)} Pakete -> {target}")
+    print(f"{len(dists)} packages -> {target}")

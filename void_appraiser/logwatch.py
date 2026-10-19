@@ -1,8 +1,8 @@
-"""Liest das Warframe-Log (EE.log) mit und meldet Relikt-Ereignisse.
+"""Follows the Warframe log (EE.log) and reports relic events.
 
-Erkannt wird (nur englischer Spielclient):
-- welches Relikt ausgerüstet wird, samt Veredelung
-- wann der Belohnungsbildschirm aufgeht und wieder zugeht
+Detected (English game client only):
+- which relic is equipped, including its refinement
+- when the reward screen opens and closes again
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ _EQUIP = re.compile(
     r"Are you sure you want to equip ([A-Z][a-z]+) (\w+) Relic"
     r"(?: \[(EXCEPTIONAL|FLAWLESS|RADIANT)\])? for this mission"
 )
-# "Refine and equip" nennt die Stufe nicht, aber die Kosten in Void Traces
+# "Refine and equip" does not name the refinement, but the cost in void traces
 _REFINE_EQUIP = re.compile(
     r"Are you sure you want to refine and equip ([A-Z][a-z]+) (\w+) Relic\?"
     r" It will cost (\d+) Void Traces"
@@ -62,11 +62,10 @@ def parse_line(line: str) -> Event | None:
 
 
 class LogWatcher:
-    """Folgt dem Log in einem Hintergrund-Thread (wie `tail -f`).
+    """Follows the log in a background thread (like `tail -f`).
 
-    Beim Start wird das vorhandene Log einmal gelesen, damit das zuletzt
-    ausgerüstete Relikt bekannt ist. Bildschirm-Ereignisse aus der
-    Vergangenheit werden dabei nicht gemeldet.
+    On start the existing log is read once so the last equipped relic is
+    known. Past screen events are not reported.
     """
 
     def __init__(self, path: Path, on_event: Callable[[Event], None], poll: float = 0.5):
@@ -93,7 +92,7 @@ class LogWatcher:
             except OSError:
                 self._stop.wait(2)
                 continue
-            # Warframe legt das Log bei jedem Spielstart neu an
+            # Warframe creates a new log on every game start
             new_identity = (st.st_ino, st.st_dev) if st.st_ino else None
             if st.st_size < pos or (identity and new_identity != identity):
                 pos, buf = 0, b""
@@ -122,7 +121,7 @@ class LogWatcher:
 
 
 def follow_once(path: Path) -> list[Event]:
-    """Alle Ereignisse eines Logs auf einmal (für Tests und Fehlersuche)."""
+    """All events of a log at once (for tests and troubleshooting)."""
     with open(path, "rb") as f:
         return [e for raw in f if (e := parse_line(raw.decode("utf-8", errors="replace")))]
 

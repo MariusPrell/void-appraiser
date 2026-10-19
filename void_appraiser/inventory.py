@@ -1,8 +1,8 @@
-"""Tab "Inventar": eingelesene Prime-Teile mit Platin, Ducats und Ducats pro Platin.
+"""Tab "Inventory": scanned prime parts with platinum, ducats and ducats per platinum.
 
-Gedanke: Bei Baro Ki'Teer zahlt man mit Ducats. Teile mit vielen Ducats, aber
-wenig Platin-Wert gibt man am besten bei Baro ab; Teile mit hohem Platin-Wert
-verkauft man lieber an Spieler.
+Idea: Baro Ki'Teer is paid in ducats. Parts with many ducats but little
+platinum value are best given to Baro; parts with a high platinum value are
+better sold to other players.
 """
 
 from __future__ import annotations
@@ -26,23 +26,18 @@ from PySide6.QtWidgets import (
 )
 
 from .data import Price
+from .i18n import num, tr
 from .paths import cache_dir
 from .recognize import GridItem
 
-# Ab so vielen Ducats pro Platin lohnt sich Baro (Faustregel, Spalte wird grün markiert)
+# From this many ducats per platinum, Baro is worth it (rule of thumb, column turns green)
 GOOD_RATIO = 10.0
-COLUMNS = ("Teil", "Anzahl", "Platin", "Ducats", "Ducats pro Platin", "Platin gesamt", "Ducats gesamt")
+COLUMNS = ("Part", "Count", "Platinum", "Ducats", "Ducats per platinum", "Platinum total", "Ducats total")
 COUNT_COL = 1
 
 
-def _fmt(value: float | None, digits: int = 0) -> str:
-    if value is None:
-        return "–"
-    return f"{value:,.{digits}f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
 class _Num(QTableWidgetItem):
-    """Zelle, die nach Zahlenwert sortiert."""
+    """Cell that sorts by its number."""
 
     def __init__(self, text: str, key: float | None):
         super().__init__(text)
@@ -54,7 +49,7 @@ class _Num(QTableWidgetItem):
 
 
 class InventoryStore:
-    """Eingelesene Teile, gespeichert in cache/inventory.json."""
+    """Scanned parts, stored in cache/inventory.json."""
 
     def __init__(self):
         self.path = cache_dir() / "inventory.json"
@@ -69,8 +64,8 @@ class InventoryStore:
         tmp.replace(self.path)
 
     def add(self, scanned: list[GridItem], crafted: dict[str, str | None]) -> int:
-        """Gescannte Teile übernehmen. Bei erneutem Scan (z. B. nach dem Scrollen) gilt die
-        neue Anzahl. Gibt die Zahl neuer Teile zurück."""
+        """Take over scanned parts. On a repeated scan (e.g. after scrolling) the new
+        count wins. Returns the number of new parts."""
         new = 0
         now = time.time()
         for item in scanned:
@@ -110,7 +105,7 @@ class InventoryTab(QWidget):
         layout.addWidget(self.info)
 
         self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
+        self.table.setHorizontalHeaderLabels([tr(c) for c in COLUMNS])
         self.table.verticalHeader().hide()
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSortingEnabled(True)
@@ -127,9 +122,9 @@ class InventoryTab(QWidget):
         layout.addWidget(self.summary)
 
         buttons = QHBoxLayout()
-        load = QPushButton("Preise laden")
+        load = QPushButton(tr("Load prices"))
         load.clicked.connect(lambda: self.request_prices(list(self.store.items)))
-        clear = QPushButton("Liste leeren")
+        clear = QPushButton(tr("Clear list"))
         clear.clicked.connect(self._clear)
         buttons.addWidget(load)
         buttons.addStretch(1)
@@ -138,17 +133,17 @@ class InventoryTab(QWidget):
 
         self.refresh()
 
-    # --- Daten --------------------------------------------------------------
+    # --- Data ---------------------------------------------------------------
 
     def add_scan(self, items: list[GridItem], crafted: dict[str, str | None]) -> int:
         new = self.store.add(items, crafted)
-        # Preise für gebaute Teile gibt es nicht (nicht handelbar)
+        # Built parts have no price (not tradeable)
         self.request_prices([i.name for i in items if not crafted.get(i.name)])
         self.refresh()
         return new
 
     def _clear(self) -> None:
-        answer = QMessageBox.question(self, "Liste leeren", "Alle eingelesenen Teile aus der Liste entfernen?")
+        answer = QMessageBox.question(self, tr("Clear list"), tr("Remove all scanned parts from the list?"))
         if answer == QMessageBox.Yes:
             self.store.clear()
             self.refresh()
@@ -165,7 +160,7 @@ class InventoryTab(QWidget):
         self.store.set_count(name, count)
         self.refresh()
 
-    # --- Anzeige ------------------------------------------------------------
+    # --- Display ------------------------------------------------------------
 
     def refresh(self) -> None:
         self._filling = True
@@ -183,19 +178,19 @@ class InventoryTab(QWidget):
             ducats = None if blueprint else self.ducats(name)
             ratio = ducats / plat if ducats and plat else None
 
-            label = QTableWidgetItem(name + ("  (gebaut, nicht handelbar)" if blueprint else ""))
+            label = QTableWidgetItem(name + (tr("  (built, not tradeable)") if blueprint else ""))
             label.setData(Qt.UserRole, name)
             label.setFlags(label.flags() & ~Qt.ItemIsEditable)
             count_cell = _Num(str(count), count)
-            count_cell.setToolTip("Doppelklick zum Ändern, 0 entfernt das Teil")
+            count_cell.setToolTip(tr("Double-click to change, 0 removes the part"))
             cells = [
                 label,
                 count_cell,
-                _Num(_fmt(plat), plat),
-                _Num(_fmt(ducats), ducats),
-                _Num(_fmt(ratio, 1), ratio),
-                _Num(_fmt(plat * count if plat else None), plat * count if plat else None),
-                _Num(_fmt(ducats * count if ducats else None), ducats * count if ducats else None),
+                _Num(num(plat), plat),
+                _Num(num(ducats), ducats),
+                _Num(num(ratio, 1), ratio),
+                _Num(num(plat * count if plat else None), plat * count if plat else None),
+                _Num(num(ducats * count if ducats else None), ducats * count if ducats else None),
             ]
             for col, cell in enumerate(cells):
                 if col != COUNT_COL:
@@ -210,18 +205,28 @@ class InventoryTab(QWidget):
         if self._user_sorted:
             self.table.sortItems(sort_col, sort_order)
         else:
-            self.table.sortItems(4, Qt.DescendingOrder)  # Standard: beste Ducats-Kandidaten oben
+            self.table.sortItems(4, Qt.DescendingOrder)  # default: best ducat candidates first
         self._filling = False
 
         pieces = sum(int(e.get("count", 1)) for e in self.store.items.values())
         self.info.setText(
-            f"Im Spiel <b>Inventar → Prime Parts</b> öffnen und <b>{self.hotkey_label()}</b> drücken. "
-            "Dann scrollen und erneut drücken, die Liste wird ergänzt. "
-            "Die Anzahl kannst du per Doppelklick korrigieren."
+            tr(
+                "In the game, open <b>Inventory → Prime Parts</b> and press <b>{key}</b>. "
+                "Then scroll and press again, the list is extended. "
+                "Double-click a count to correct it.",
+                key=self.hotkey_label(),
+            )
         )
         self.summary.setText(
-            f"{len(rows)} verschiedene Teile, {pieces} Stück · Wert: <b>{_fmt(total_plat)} Platin</b> "
-            f"oder <b>{_fmt(total_ducats)} Ducats</b><br>"
-            f"<b>Ducats pro Platin</b>: Wie viele Ducats du für 1 Platin Marktwert bekommst. "
-            f"Ab etwa {GOOD_RATIO:.0f} (grün) lohnt sich Baro Ki'Teer, darunter lieber an Spieler verkaufen."
+            tr(
+                "{parts} different parts, {pieces} pieces · value: <b>{plat} platinum</b> "
+                "or <b>{ducats} ducats</b><br>"
+                "<b>Ducats per platinum</b>: how many ducats you get for 1 platinum of market value. "
+                "From about {ratio} (green), Baro Ki'Teer is worth it; below that, rather sell to players.",
+                parts=len(rows),
+                pieces=pieces,
+                plat=num(total_plat),
+                ducats=num(total_ducats),
+                ratio=f"{GOOD_RATIO:.0f}",
+            )
         )

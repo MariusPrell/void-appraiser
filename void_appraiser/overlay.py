@@ -1,12 +1,12 @@
-"""Overlay über dem Spiel: Preise unter den Belohnungskarten und Infos zum Relikt.
+"""Overlay on top of the game: prices below the reward cards and relic info.
 
-Die Overlay-Fenster sind durchsichtig und lassen Klicks durch.
-- Windows/X11: Qt platziert die Fenster selbst, rahmenlos und immer im Vordergrund.
-- Hyprland: Platzierung per hyprctl. Im Leerlauf liegt das Overlay auf einem
-  versteckten Spezial-Arbeitsbereich, damit das Spiel kein Fenster über sich hat
-  (sonst kein Direct Scanout). Verstecken und wieder Zeigen geht nicht, weil das
-  unter Wayland ein neues Fenster erzeugt, das den Fokus klaut. Das Verschieben
-  passiert "silent", damit der Fokus beim Spiel bleibt.
+The overlay windows are transparent and let clicks through.
+- Windows/X11: Qt places the windows itself, frameless and always on top.
+- Hyprland: placement via hyprctl. While idle the overlay sits on a hidden
+  special workspace, so the game has no window on top of it (otherwise no
+  direct scanout). Hiding and showing again does not work, because on Wayland
+  that creates a new window which steals the focus. Moves happen "silently"
+  so the focus stays with the game.
 """
 
 from __future__ import annotations
@@ -21,11 +21,10 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from . import capture, hypr
 
-# Bereiche relativ zur 16:9-Fläche des Spiels (x0, y0, x1, y1)
-# Gleiche Schreibweise wie in recognize.py: (x0, y0, x1, y1, Skalierung, Anker)
-REWARDS_AREA = (0.08, 0.525, 0.92, 0.59, 1.0, "center")  # unter den Spielernamen der Karten (bis zu 2 Zeilen)
-RELIC_AREA = (0.30, 0.625, 0.70, 0.70, 1.0, "center")  # unter dem Ausrüsten-Dialog
-HINT_AREA = (0.33, 0.06, 0.67, 0.105, 1.0, "center")  # oben mittig, zwischen Kopfzeile und Kontostand
+# Areas in the same notation as recognize.py: (x0, y0, x1, y1, scale, anchor)
+REWARDS_AREA = (0.08, 0.525, 0.92, 0.59, 1.0, "center")  # below the player names of the cards (up to 2 lines)
+RELIC_AREA = (0.30, 0.625, 0.70, 0.70, 1.0, "center")  # below the equip dialog
+HINT_AREA = (0.33, 0.06, 0.67, 0.105, 1.0, "center")  # top center, between header and account balance
 
 BG = QColor(12, 18, 28, 225)
 BEST_BG = QColor(45, 106, 79, 240)
@@ -36,10 +35,10 @@ ACCENT = QColor(232, 197, 71)
 
 @dataclass(frozen=True)
 class Item:
-    x: float  # Mitte relativ zur Fensterbreite (0 bis 1)
+    x: float  # center relative to the window width (0 to 1)
     lines: tuple[str, ...]
     best: bool = False
-    bg: QColor | None = None  # eigene Hintergrundfarbe (z. B. roter Hinweis)
+    bg: QColor | None = None  # custom background color (e.g. red hint)
 
 
 class OverlayPanel(QWidget):
@@ -56,11 +55,11 @@ class OverlayPanel(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.items: list[Item] = []
-        self.full_width = False  # ein breites Feld statt einzelner Kästen
+        self.full_width = False  # one wide box instead of separate boxes
 
     def set_items(self, items: list[Item], full_width: bool = False) -> None:
         if items == self.items and full_width == self.full_width:
-            return  # nichts geändert, nicht neu zeichnen
+            return  # nothing changed, do not repaint
         self.items = items
         self.full_width = full_width
         self.update()
@@ -101,7 +100,7 @@ class OverlayPanel(QWidget):
 
 
 def _game_area(monitor_name: str) -> tuple[capture.Rect, str | None]:
-    """Fläche des Spiels in Bildschirmkoordinaten und der Monitorname (Hyprland)."""
+    """Area of the game in screen coordinates and the monitor name (Hyprland)."""
     be = capture.backend()
     rect = None
     monitor = None
@@ -119,7 +118,7 @@ def _game_area(monitor_name: str) -> tuple[capture.Rect, str | None]:
         screen = QApplication.primaryScreen().geometry()
         rect = capture.Rect(screen.x(), screen.y(), screen.width(), screen.height())
     if sys.platform == "win32":
-        # Win32 liefert physische Pixel, Qt arbeitet mit logischen
+        # Win32 reports physical pixels, Qt works with logical ones
         ratio = QApplication.primaryScreen().devicePixelRatio()
         return capture.Rect(int(rect.x / ratio), int(rect.y / ratio), int(rect.w / ratio), int(rect.h / ratio)), None
     return rect, monitor
@@ -130,11 +129,11 @@ class OverlayManager:
         self.monitor_name = monitor_name
         self.enabled = True
         self.use_hypr = isinstance(capture.backend(), capture.HyprlandBackend)
-        # PID im Titel, damit sich zwei laufende Instanzen nicht in die Quere kommen
+        # PID in the title so two running instances do not get in each other's way
         pid = os.getpid()
-        self.rewards = OverlayPanel(f"Void Appraiser Overlay Belohnungen {pid}")
-        self.relic = OverlayPanel(f"Void Appraiser Overlay Relikt {pid}")
-        self.hint = OverlayPanel(f"Void Appraiser Overlay Hinweis {pid}")
+        self.rewards = OverlayPanel(f"Void Appraiser Overlay Rewards {pid}")
+        self.relic = OverlayPanel(f"Void Appraiser Overlay Relic {pid}")
+        self.hint = OverlayPanel(f"Void Appraiser Overlay Hint {pid}")
         self._hint_text = ""
         self._hint_timer = QTimer()
         self._hint_timer.setSingleShot(True)
@@ -154,7 +153,7 @@ class OverlayManager:
             self._setup_tries = 0
             QTimer.singleShot(50, self._hypr_setup)
 
-    # --- Hyprland: Fenster einmalig einrichten ----------------------------
+    # --- Hyprland: set up the windows once -----------------------------------
 
     def _hypr_setup(self) -> None:
         for panel in self._panels():
@@ -168,7 +167,7 @@ class OverlayManager:
         if len(self._addresses) < len(self._panels()) and self._setup_tries < 40:
             QTimer.singleShot(50, self._hypr_setup)
             return
-        # Den Fokus zurückgeben, den das neue Fenster beim Öffnen bekommen hat
+        # Give back the focus the new window received when it opened
         if self._previous_focus:
             hypr.focus(self._previous_focus)
 
@@ -177,7 +176,7 @@ class OverlayManager:
         if address:
             hypr.park(address)
 
-    # --- Anzeigen und Verstecken ------------------------------------------
+    # --- Showing and hiding -------------------------------------------------
 
     def _show(self, panel: OverlayPanel, area: tuple) -> None:
         from .recognize import region_rect
@@ -207,7 +206,7 @@ class OverlayManager:
         self.rewards.set_items(items)
         if not self._reward_timer.isActive():
             self._show(self.rewards, REWARDS_AREA)
-        # Sicherheitsnetz, falls das Ende des Bildschirms verpasst wird
+        # Safety net in case the end of the screen is missed
         self._reward_timer.start(25_000)
 
     def hide_rewards(self) -> None:
@@ -225,16 +224,16 @@ class OverlayManager:
     def _panels(self) -> tuple[OverlayPanel, ...]:
         return (self.rewards, self.relic, self.hint)
 
-    # --- Roter Hinweis oben (Inventar) ------------------------------------
+    # --- Red hint at the top (inventory) ------------------------------------
 
     def show_hint(self, text: str) -> None:
-        """Dauerhafter Hinweis, bis hide_hint() kommt."""
+        """Permanent hint until hide_hint() is called."""
         self._hint_text = text
         if not self._hint_timer.isActive():
             self._set_hint(text)
 
     def flash_hint(self, text: str, seconds: float = 4.0) -> None:
-        """Kurze Meldung, danach wieder der dauerhafte Hinweis (falls noch aktiv)."""
+        """Short message, then back to the permanent hint (if still active)."""
         self._set_hint(text, QColor(45, 106, 79, 240))
         self._hint_timer.start(int(seconds * 1000))
 

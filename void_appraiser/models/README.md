@@ -1,6 +1,6 @@
-# OCR-Modelle
+# OCR models
 
-- `PP-OCRv6_det_small.onnx` (Textsuche) und `PP-OCRv6_rec_small.onnx` (Texterkennung)
-- Herkunft: PaddleOCR (Baidu / PaddlePaddle-Autoren), im ONNX-Format übernommen aus RapidOCR 3.10.0
-- Lizenz: Apache License 2.0, siehe `LICENSE-Apache-2.0.txt` und `MODEL_LICENSES.md`
-- Unverändert übernommen. Die Auswertung in `void_appraiser/ocr.py` ist an den Ablauf von RapidOCR/PaddleOCR angelehnt.
+- `PP-OCRv6_det_small.onnx` (text detection) and `PP-OCRv6_rec_small.onnx` (text recognition)
+- Origin: PaddleOCR (Baidu / PaddlePaddle authors), in ONNX format as shipped with RapidOCR 3.10.0
+- License: Apache License 2.0, see `LICENSE-Apache-2.0.txt` and `MODEL_LICENSES.md`
+- Unmodified. The processing in `void_appraiser/ocr.py` follows the pipeline of RapidOCR/PaddleOCR.

@@ -1,7 +1,7 @@
-"""Drop-Suche in den offiziellen Drop-Tabellen von Digital Extremes.
+"""Drop search in the official drop tables of Digital Extremes.
 
-Quelle: https://www.warframe.com/droptables, aufbereitet als JSON von
-drops.warframestat.us (Datei all.slim.json, rund 43.000 Einträge).
+Source: https://www.warframe.com/droptables, prepared as JSON by
+drops.warframestat.us (file all.slim.json, about 43,000 entries).
 """
 
 from __future__ import annotations
@@ -26,11 +26,11 @@ class Drop:
     item: str
     place: str
     rarity: str
-    chance: float | None  # in Prozent
+    chance: float | None  # in percent
 
     @property
     def relic(self) -> tuple[str, str, str] | None:
-        """(Stufe, Name, Veredelung), wenn der Fundort ein Relikt ist."""
+        """(tier, name, refinement) if the location is a relic."""
         m = _RELIC.match(self.place)
         return (m[1], m[2], m[3] or "Intact") if m else None
 
@@ -61,8 +61,8 @@ class DropTable:
         return cls(_cached_json("drops_all.json", DROPS_URL, RELIC_DATA_MAX_AGE))
 
     def search(self, query: str, hide_refined: bool = True, in_places: bool = False) -> tuple[list[Drop], int]:
-        """Alle Wörter der Suche müssen im Gegenstand vorkommen (oder, mit in_places,
-        im Fundort). Gibt (Treffer, Gesamtzahl) zurück, sortiert nach Chance."""
+        """All words of the query must appear in the item (or, with in_places, in the
+        location). Returns (hits, total), sorted by chance."""
         words = [w for w in query.lower().split() if w]
         if not words:
             return [], 0

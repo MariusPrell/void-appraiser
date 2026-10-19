@@ -1,4 +1,4 @@
-"""Tab "Overview": Tageszeiten, Void Fissures und Alerts aus dem Worldstate."""
+"""Tab "Overview": day cycles, void fissures and alerts from the worldstate."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import worldstate
+from .i18n import tr
 from .worldstate import Worldstate, time_left
 
 REFRESH_MS = 60_000
@@ -69,10 +70,10 @@ class OverviewTab(QWidget):
         bold = QFont()
         bold.setBold(True)
 
-        # Tageszeiten als kleine Kacheln
+        # Day cycles as small tiles
         self.cycle_grid = QGridLayout()
         self.cycle_labels: dict[str, tuple[QLabel, QLabel]] = {}
-        for i, (_, place, _) in enumerate(worldstate.CYCLES):
+        for i, (_, place) in enumerate(worldstate.CYCLES):
             frame = QFrame()
             frame.setFrameShape(QFrame.StyledPanel)
             box = QVBoxLayout(frame)
@@ -87,7 +88,7 @@ class OverviewTab(QWidget):
             self.cycle_grid.addWidget(frame, 0, i)
         layout.addLayout(self.cycle_grid)
 
-        # Void Fissures mit Filter
+        # Void fissures with filter
         row = QHBoxLayout()
         title = QLabel("Void Fissures")
         title.setFont(bold)
@@ -96,25 +97,29 @@ class OverviewTab(QWidget):
         wanted = set(config.get("fissure_filter", ["Normal", "Steel Path", "Void Storm"]))
         self.filters: dict[str, QCheckBox] = {}
         for kind in ("Normal", "Steel Path", "Void Storm"):
-            box = QCheckBox(kind)
+            box = QCheckBox(tr(kind))
             box.setChecked(kind in wanted)
             box.toggled.connect(self._filter_changed)
             self.filters[kind] = box
             row.addWidget(box)
         layout.addLayout(row)
-        self.fissure_table = _table(("Relikt", "Mission", "Ort", "Gegner", "Art", "Restzeit"), 2)
+        self.fissure_table = _table(
+            (tr("Relic"), tr("Mission"), tr("Node"), tr("Enemy"), tr("Type"), tr("Time left")), 2
+        )
         layout.addWidget(self.fissure_table, 3)
 
-        alerts_title = QLabel("Alerts")
+        alerts_title = QLabel(tr("Alerts"))
         alerts_title.setFont(bold)
         layout.addWidget(alerts_title)
-        self.alert_table = _table(("Mission", "Ort", "Gegner", "Level", "Belohnung", "Restzeit"), 4)
+        self.alert_table = _table(
+            (tr("Mission"), tr("Node"), tr("Enemy"), tr("Level"), tr("Reward"), tr("Time left")), 4
+        )
         layout.addWidget(self.alert_table, 1)
 
-        self.status = QLabel("Lade Daten von api.warframestat.us …")
+        self.status = QLabel(tr("Loading data from api.warframestat.us …"))
         layout.addWidget(self.status)
 
-        # Restzeiten jede Sekunde, Daten jede Minute neu
+        # Time left every second, data every minute
         self._tick = QTimer(self)
         self._tick.timeout.connect(self._update_times)
         self._tick.start(1000)
@@ -123,10 +128,10 @@ class OverviewTab(QWidget):
         self._refresh.start(REFRESH_MS)
         self.reload()
 
-    # --- Laden ------------------------------------------------------------
+    # --- Loading ------------------------------------------------------------
 
     def reload(self) -> None:
-        # Höchstens alle 20 s, falls die API eine abgelaufene Tageszeit noch nicht erneuert hat
+        # At most every 20 s, in case the API has not renewed an expired cycle yet
         if self._loading or time.monotonic() - self._last_reload < 20:
             return
         self._loading = True
@@ -136,7 +141,7 @@ class OverviewTab(QWidget):
     def _fetch(self) -> None:
         try:
             self.bridge.loaded.emit(worldstate.fetch())
-        except Exception as exc:  # Netz weg, API down: alte Daten bleiben stehen
+        except Exception as exc:  # no network, API down: old data stays visible
             self.bridge.failed.emit(str(exc))
 
     def _on_loaded(self, state: Worldstate) -> None:
@@ -144,18 +149,20 @@ class OverviewTab(QWidget):
         self.state = state
         self._fill()
         local = state.fetched.astimezone().strftime("%H:%M:%S")
-        self.status.setText(f"Stand: {local} · Quelle: api.warframestat.us (Fan-API) · aktualisiert jede Minute")
+        self.status.setText(
+            tr("As of {time} · source: api.warframestat.us (fan API) · refreshed every minute", time=local)
+        )
 
     def _on_failed(self, message: str) -> None:
         self._loading = False
-        self.status.setText(f"Aktualisieren fehlgeschlagen ({message}), zeige ältere Daten")
+        self.status.setText(tr("Refresh failed ({error}), showing older data", error=message))
 
     def _filter_changed(self) -> None:
         self.config["fissure_filter"] = [k for k, box in self.filters.items() if box.isChecked()]
         self.save_config(self.config)
         self._fill()
 
-    # --- Anzeige ----------------------------------------------------------
+    # --- Display ------------------------------------------------------------
 
     def _visible_fissures(self):
         if not self.state:
@@ -171,14 +178,14 @@ class OverviewTab(QWidget):
         for cycle in self.state.cycles:
             labels = self.cycle_labels.get(cycle.place)
             if labels:
-                labels[0].setText(cycle.state)
+                labels[0].setText(tr(cycle.state))
 
         fissures = self._visible_fissures()
         self.fissure_table.setRowCount(len(fissures))
         for row, f in enumerate(fissures):
             tier = QTableWidgetItem(f.tier)
             tier.setForeground(QBrush(QColor(TIER_COLORS.get(f.tier, "#ffffff"))))
-            kind = QTableWidgetItem(f.kind)
+            kind = QTableWidgetItem(tr(f.kind))
             if f.kind in KIND_COLORS:
                 kind.setForeground(QBrush(QColor(KIND_COLORS[f.kind])))
             for col, item in enumerate((tier, QTableWidgetItem(f.mission), QTableWidgetItem(f.node), QTableWidgetItem(f.enemy), kind, _right(""))):
@@ -199,15 +206,15 @@ class OverviewTab(QWidget):
         for cycle in self.state.cycles:
             labels = self.cycle_labels.get(cycle.place)
             if labels:
-                labels[1].setText(f"noch {time_left(cycle.expiry, now)}")
+                labels[1].setText(tr("{time} left", time=time_left(cycle.expiry, now)))
         fissures = self._visible_fissures()
         if len(fissures) != self.fissure_table.rowCount():
-            self._fill()  # eine Fissure ist abgelaufen
+            self._fill()  # a fissure has expired
             return
         for row, f in enumerate(fissures):
             self.fissure_table.item(row, 5).setText(time_left(f.expiry, now))
         for row, a in enumerate(self.state.alerts):
             self.alert_table.item(row, 5).setText(time_left(a.expiry, now))
-        # Abgelaufene Tageszeit: gleich neu laden statt eine Minute zu warten
+        # Expired cycle: reload right away instead of waiting a minute
         if any(c.expiry <= now for c in self.state.cycles):
             self.reload()

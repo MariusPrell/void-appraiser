@@ -1,33 +1,49 @@
-"""Globale Taste für den manuellen Scan.
+"""Global key for the manual scan.
 
-Nutzt pynput. Unter Windows geht das überall. Unter Linux/Wayland sieht pynput
-nur Tasten, die an X11-Fenster gehen; Warframe läuft über Proton als
-XWayland-Fenster, also klappt es, solange das Spiel im Vordergrund ist.
+Uses pynput. On Windows this works everywhere. On Linux/Wayland pynput only
+sees keys sent to X11 windows; Warframe runs through Proton as an XWayland
+window, so it works while the game is in the foreground.
 
-Die Taste wird nur gelesen, nie an das Spiel gesendet.
+The key is only read, never sent to the game.
 """
 
 from __future__ import annotations
 
 from typing import Callable
 
-# Angezeigter Name -> pynput-Name. Nur Tasten, die im Spiel selten belegt sind.
+# Key name stored in the settings -> pynput name. Only keys rarely bound in the game.
 KEYS = {
-    "Aus": None,
+    "Off": None,
     **{f"F{i}": f"f{i}" for i in range(1, 13)},
-    "Einfg": "insert",
-    "Pos1": "home",
-    "Ende": "end",
-    "Bild auf": "page_up",
-    "Bild ab": "page_down",
+    "Insert": "insert",
+    "Home": "home",
+    "End": "end",
+    "Page Up": "page_up",
+    "Page Down": "page_down",
     "Pause": "pause",
-    "Rollen": "scroll_lock",
+    "Scroll Lock": "scroll_lock",
 }
+
+# Key names of version 0.8 and older (German) -> current names
+LEGACY_KEYS = {
+    "Aus": "Off",
+    "Einfg": "Insert",
+    "Pos1": "Home",
+    "Ende": "End",
+    "Bild auf": "Page Up",
+    "Bild ab": "Page Down",
+    "Rollen": "Scroll Lock",
+}
+
+
+def normalize(label: str) -> str:
+    label = LEGACY_KEYS.get(label, label)
+    return label if label in KEYS else "Insert"
 
 
 class HotkeyListener:
     def __init__(self, key_label: str, callback: Callable[[], None]):
-        self.key_label = key_label
+        self.key_label = normalize(key_label)
         self.callback = callback
         self._listener = None
         self.error: str | None = None
@@ -40,7 +56,7 @@ class HotkeyListener:
             from pynput import keyboard
 
             target = getattr(keyboard.Key, name)
-        except Exception as exc:  # z. B. kein X-Server erreichbar
+        except Exception as exc:  # e.g. no X server reachable
             self.error = str(exc)
             return
 

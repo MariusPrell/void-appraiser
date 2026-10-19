@@ -1,7 +1,7 @@
-# Baut die Pakete für Windows und Linux.
-# Startet bei einem Versions-Tag (z. B. v0.4.0) oder von Hand unter "Actions".
-# Die fertigen Pakete stehen danach unter Actions -> Lauf -> Artifacts
-# und bei einem Tag zusätzlich als Release mit dem passenden Abschnitt aus CHANGELOG.md.
+# Builds the packages for Windows and Linux.
+# Runs on a version tag (e.g. v0.4.0) or manually under "Actions".
+# The packages are then available under Actions -> run -> Artifacts,
+# and for a tag also as a release with the matching section from CHANGELOG.md.
 name: Build
 
 on:
@@ -30,11 +30,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Linux-Bibliotheken für Qt und pynput
+      - name: Linux libraries for Qt and pynput
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0
 
-      - name: Abhängigkeiten
+      - name: Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install . pytest pyinstaller
@@ -44,22 +44,22 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q
 
-      - name: Paket bauen
+      - name: Build package
         run: pyinstaller packaging/void-appraiser.spec --noconfirm --distpath dist --workpath build
 
-      - name: Paket prüfen (Texterkennung im fertigen Programm)
+      - name: Check package (text recognition in the built program)
         shell: bash
         run: |
           exe=dist/void-appraiser/void-appraiser
           [ "$RUNNER_OS" = "Windows" ] && exe="$exe.exe"
-          "$exe" --selftest tests/fixtures/belohnung-3-karten.png
+          "$exe" --selftest tests/fixtures/rewards-3-cards.png
           "$exe" --selftest tests/fixtures/dialog-axi-z2-radiant.png
 
-      - name: Packen (Windows)
+      - name: Pack (Windows)
         if: runner.os == 'Windows'
         run: Compress-Archive -Path dist/void-appraiser -DestinationPath ${{ matrix.archive }}
 
-      - name: Packen (Linux)
+      - name: Pack (Linux)
         if: runner.os == 'Linux'
         run: tar -czf ${{ matrix.archive }} -C dist void-appraiser
 
@@ -68,7 +68,7 @@ jobs:
           name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}
 
-      - name: Release-Text aus CHANGELOG.md
+      - name: Release text from CHANGELOG.md
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: python packaging/release_notes.py "${GITHUB_REF_NAME}" > release-notes.md

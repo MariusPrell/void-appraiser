@@ -1,10 +1,10 @@
-# PyInstaller-Bauplan für Windows und Linux.
-# Bauen:  pyinstaller packaging/void-appraiser.spec --noconfirm
-# Ergebnis: dist/void-appraiser/ (Ordner mit Programm und Bibliotheken)
+# PyInstaller build spec for Windows and Linux.
+# Build:  pyinstaller packaging/void-appraiser.spec --noconfirm
+# Result: dist/void-appraiser/ (folder with the program and its libraries)
 import os
 import sys
 
-# OCR-Modelle und ihre Lizenzen (void_appraiser/models/)
+# OCR models and their licenses (void_appraiser/models/)
 datas = [(os.path.join(SPECPATH, "..", "void_appraiser", "models", "*"), os.path.join("void_appraiser", "models"))]
 hiddenimports = []
 if sys.platform.startswith("linux"):
@@ -12,7 +12,7 @@ if sys.platform.startswith("linux"):
 elif sys.platform == "win32":
     hiddenimports += ["pynput.keyboard._win32", "pynput.mouse._win32"]
 
-# Große Qt-Teile, die wir nicht brauchen
+# Large Qt parts we do not need
 excludes = [
     "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick",
     "PySide6.Qt3DCore", "PySide6.Qt3DRender", "PySide6.QtQuick", "PySide6.QtQml",
@@ -23,25 +23,25 @@ excludes = [
 
 a = Analysis(
     [os.path.join(SPECPATH, "start.py")],
-    pathex=[os.path.join(SPECPATH, "..")],  # SPECPATH: Ordner dieser Datei
+    pathex=[os.path.join(SPECPATH, "..")],  # SPECPATH: folder of this file
     datas=datas,
     hiddenimports=hiddenimports,
     excludes=excludes,
 )
-# Qt-Teile entfernen, die das Programm nicht braucht (Paketgröße).
-# Abgleich ohne Groß-/Kleinschreibung auf den Zielpfad, gilt für Windows und Linux.
+# Remove Qt parts the program does not need (package size).
+# Case-insensitive match on the destination path, works for Windows and Linux.
 _QT_UNUSED = [
     "/translations/",
-    # Bibliotheken (Linux: libQt6Quick.so.6, Windows: Qt6Quick.dll)
+    # Libraries (Linux: libQt6Quick.so.6, Windows: Qt6Quick.dll)
     "qt6quick", "qt6qml", "qt6pdf", "qt6virtualkeyboard", "qt6network",
-    "qt6eglfs",  # OpenGL und Svg bleiben: Wayland-Grafik und Fensterrahmen brauchen sie
+    "qt6eglfs",  # OpenGL and Svg stay: Wayland graphics and window decorations need them
     "pyside6/qtnetwork",
     # Plugins
     "plugins/imageformats/", "plugins/iconengines/", "plugins/generic/", "plugins/tls/",
     "plugins/networkinformation/", "plugins/egldeviceintegrations/", "qtvirtualkeyboardplugin",
     "platforms/libqeglfs", "platforms/libqlinuxfb", "platforms/libqminimalegl",
     "platforms/libqvkkhrdisplay", "platforms/libqvnc",
-    # GTK-Design zieht unter Linux GTK und viele Systembibliotheken mit; wir nutzen den Fusion-Stil
+    # The GTK theme pulls in GTK and many system libraries on Linux; we use the Fusion style
     "platformthemes/libqgtk3",
 ]
 
@@ -54,8 +54,8 @@ def _keep(entry):
 a.binaries = [b for b in a.binaries if _keep(b)]
 a.datas = [d for d in a.datas if _keep(d)]
 
-# Linux: Systembibliotheken weglassen, die nach dem Filtern niemand mehr braucht
-# (z. B. GTK und seine Abhängigkeiten, die nur das entfernte GTK-Design-Plugin nutzte).
+# Linux: drop system libraries nothing needs anymore after filtering
+# (e.g. GTK and its dependencies, used only by the removed GTK theme plugin).
 if sys.platform.startswith("linux"):
     from PyInstaller.depend import bindepend
 
@@ -79,7 +79,7 @@ if sys.platform.startswith("linux"):
                 _todo.append(_dep)
     _dropped = [b[0] for b in a.binaries if _toplevel(b[0]) and b[0] not in _needed]
     a.binaries = [b for b in a.binaries if not _toplevel(b[0]) or b[0] in _needed]
-    print(f"{len(_dropped)} ungenutzte Systembibliotheken weggelassen")
+    print(f"Dropped {len(_dropped)} unused system libraries")
 
 pyz = PYZ(a.pure)
 exe = EXE(
@@ -92,7 +92,7 @@ exe = EXE(
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="void-appraiser")
 
-# Lizenzen der Fremdsoftware neben das Programm legen
+# Put the third-party licenses next to the program
 import subprocess
 
 subprocess.run(
@@ -100,7 +100,7 @@ subprocess.run(
     check=True,
 )
 
-# Eigene Lizenz ebenfalls neben das Programm legen
+# Put our own license next to the program as well
 import shutil
 
 shutil.copy(os.path.join(SPECPATH, "..", "LICENSE"), os.path.join(DISTPATH, "void-appraiser", "LICENSE.txt"))

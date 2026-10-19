@@ -1,4 +1,4 @@
-"""Tab "Drop-Suche": wo gibt es einen Gegenstand (offizielle DE-Drop-Tabellen)."""
+"""Tab "Drop search": where to get an item (official DE drop tables)."""
 
 from __future__ import annotations
 
@@ -18,9 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .drops import DropTable
+from .drops import Drop, DropTable
+from .i18n import num, tr
 
-COLUMNS = ("Gegenstand", "Fundort", "Seltenheit", "Chance")
+COLUMNS = ("Item", "Location", "Rarity", "Chance")
 
 
 class _Bridge(QObject):
@@ -30,7 +31,7 @@ class _Bridge(QObject):
 
 class _Chance(QTableWidgetItem):
     def __init__(self, value: float | None):
-        text = "–" if value is None else f"{value:.2f} %".replace(".", ",")
+        text = "–" if value is None else f"{num(value, 2)} %"
         super().__init__(text)
         self.key = -1.0 if value is None else value
         self.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -51,18 +52,18 @@ class DropSearchTab(QWidget):
         layout = QVBoxLayout(self)
         row = QHBoxLayout()
         self.query = QLineEdit()
-        self.query.setPlaceholderText("Suche, z. B. Gauss Neuroptics oder Axi A1 Relic")
+        self.query.setPlaceholderText(tr("Search, e.g. Gauss Neuroptics or Axi A1 Relic"))
         self.query.setClearButtonEnabled(True)
         row.addWidget(self.query, 1)
-        self.refined = QCheckBox("Veredelte Relikte zeigen")
-        self.places = QCheckBox("Im Fundort suchen")
-        self.places.setToolTip("Zeigt, was es an einem Ort gibt, z. B. „Apollodorus“ oder „Axi A1 Relic“")
+        self.refined = QCheckBox(tr("Show refined relics"))
+        self.places = QCheckBox(tr("Search in locations"))
+        self.places.setToolTip(tr("Shows what drops at a location, e.g. “Apollodorus” or “Axi A1 Relic”"))
         row.addWidget(self.refined)
         row.addWidget(self.places)
         layout.addLayout(row)
 
         self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
+        self.table.setHorizontalHeaderLabels([tr(c) for c in COLUMNS])
         self.table.verticalHeader().hide()
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -72,15 +73,15 @@ class DropSearchTab(QWidget):
         header.setSectionResizeMode(1, QHeaderView.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSortIndicator(3, Qt.DescendingOrder)  # höchste Chance zuerst
+        header.setSortIndicator(3, Qt.DescendingOrder)  # highest chance first
         self.table.cellDoubleClicked.connect(self._double_clicked)
         layout.addWidget(self.table, 1)
 
-        self.status = QLabel("Lade Drop-Tabellen …")
+        self.status = QLabel(tr("Loading drop tables …"))
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
 
-        # Suchen beim Tippen, mit kurzer Pause, damit nicht jeder Buchstabe sucht
+        # Search while typing, with a short pause so not every letter triggers a search
         self._debounce = QTimer(self)
         self._debounce.setSingleShot(True)
         self._debounce.setInterval(250)
@@ -95,20 +96,23 @@ class DropSearchTab(QWidget):
     def _load(self) -> None:
         try:
             self.bridge.loaded.emit(DropTable.load())
-        except Exception as exc:  # Netz weg und kein Cache
+        except Exception as exc:  # no network and no cache
             self.bridge.failed.emit(str(exc))
 
     def _on_loaded(self, table: DropTable) -> None:
         self.table_data = table
         self.status.setText(
-            f"{len(table.drops):,} Einträge aus den offiziellen Drop-Tabellen von Digital Extremes "
-            "(aufbereitet von drops.warframestat.us, täglich aktualisiert). "
-            "Doppelklick auf ein Relikt zeigt dessen Inhalt und Wert.".replace(",", ".")
+            tr(
+                "{count} entries from the official Digital Extremes drop tables "
+                "(prepared by drops.warframestat.us, updated daily). "
+                "Double-click a relic to see its contents and value.",
+                count=num(len(table.drops)),
+            )
         )
         self._search()
 
     def _on_failed(self, message: str) -> None:
-        self.status.setText(f"Drop-Tabellen konnten nicht geladen werden: {message}")
+        self.status.setText(tr("Could not load the drop tables: {error}", error=message))
 
     def _search(self) -> None:
         if self.table_data is None:
@@ -121,19 +125,19 @@ class DropSearchTab(QWidget):
         for row, drop in enumerate(hits):
             place = QTableWidgetItem(drop.place)
             if drop.relic:
-                place.setToolTip("Doppelklick: Relikt im Tab „Relikte“ öffnen")
+                place.setToolTip(tr("Double-click: open the relic in the “Relics” tab"))
             item = QTableWidgetItem(drop.item)
             for col, cell in enumerate((item, place, QTableWidgetItem(drop.rarity), _Chance(drop.chance))):
                 self.table.setItem(row, col, cell)
         self.table.setSortingEnabled(True)
         if self.query.text().strip():
-            more = f" (die ersten {len(hits)} angezeigt)" if total > len(hits) else ""
-            self.status.setText(f"{total} Treffer{more}. Doppelklick auf ein Relikt zeigt dessen Inhalt und Wert.")
+            more = tr(" (showing the first {count})", count=len(hits)) if total > len(hits) else ""
+            self.status.setText(
+                tr("{count} results{more}. Double-click a relic to see its contents and value.", count=total, more=more)
+            )
 
     def _double_clicked(self, row: int, column: int) -> None:
-        # Relikt als Fundort oder als Gegenstand (z. B. "Axi A1 Relic" als Belohnung)
-        from .drops import Drop
-
+        # Relic as location or as item (e.g. "Axi A1 Relic" as a reward)
         for col in (1, 0):
             text = self.table.item(row, col).text()
             relic = Drop("", text, "", None).relic

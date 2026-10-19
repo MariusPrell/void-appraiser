@@ -11,7 +11,7 @@ def test_search_words_in_any_order():
     hits, total = table.search("gauss neuroptics")
     assert hits and all("Gauss Prime Neuroptics" in d.item for d in hits)
     assert total == len(hits)
-    # Veredelte Relikte sind standardmäßig ausgeblendet
+    # Refined relics are hidden by default
     assert all("(Radiant)" not in d.place for d in hits)
     all_hits, _ = table.search("neuroptics GAUSS", hide_refined=False)
     assert len(all_hits) > len(hits)
@@ -23,7 +23,7 @@ def test_sorted_by_chance_and_parsed():
     chances = [d.chance for d in hits]
     assert chances == sorted(chances, reverse=True)
     assert all("<b>" not in d.place for d in table.drops)
-    assert any(d.chance is None for d in table.drops)  # "chance": null bleibt erlaubt
+    assert any(d.chance is None for d in table.drops)  # "chance": null is allowed
 
 
 def test_relic_place():

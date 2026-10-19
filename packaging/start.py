@@ -1,4 +1,4 @@
-# Startpunkt für PyInstaller (braucht ein Skript statt "python -m")
+# Entry point for PyInstaller (needs a script instead of "python -m")
 import sys
 
 from void_appraiser.__main__ import main
