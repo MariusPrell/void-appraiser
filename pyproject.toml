@@ -1,6 +1,6 @@
 [project]
 name = "warframe-helper"
-version = "0.2.0"
+version = "0.3.0"
 description = "Zeigt den Platin-Wert von Void-Relikt-Belohnungen (warframe.market)"
 requires-python = ">=3.10"
 dependencies = [

@@ -45,6 +45,13 @@ class RewardsGone:
 
 
 @dataclass(frozen=True)
+class DialogDetected:
+    """Ausrüsten-Dialog auf dem Bildschirm (im Gegensatz zum verspäteten Log)."""
+
+    relic: RelicEquipped
+
+
+@dataclass(frozen=True)
 class ScannerStatus:
     text: str
 
@@ -167,7 +174,7 @@ class Scanner:
         if relic:
             # Derselbe Dialog bleibt mehrere Durchgänge offen: nur einmal melden
             if not self._last_relic or self._last_relic[0] != relic or time.monotonic() - self._last_relic[1] > 30:
-                self.on_event(relic)
+                self.on_event(DialogDetected(relic))
                 self._debug_save(frame, "dialog", True)
             self._last_relic = (relic, time.monotonic())
         elif manual:

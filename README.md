@@ -2,7 +2,13 @@
 
 Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](https://warframe.market), Relikt-Inhalte von [drops.warframestat.us](https://drops.warframestat.us).
 
-## Stand (0.2.0, Stufe 2, im Test)
+## Stand (0.3.0, Stufe 3, im Test)
+- **Overlay über dem Spiel:** Unter jeder Belohnungskarte stehen Platin und Ducats, das wertvollste Teil ist grün markiert. Beim Ausrüsten-Dialog erscheint eine Kurzinfo (Dauer einstellbar, Standard 5 s) zum Relikt (Erwartungswert, bestes Teil). In den Einstellungen abschaltbar.
+- Das Overlay lässt Klicks durch und nimmt dem Spiel nicht den Fokus.
+- Hyprland: Platzierung per `hyprctl dispatch` (Lua-Syntax ab 0.55, klassische Syntax ungetestet). Im Leerlauf parkt das Overlay als 1×1-Pixel-Fenster auf einem anderen Monitor, damit das Spiel Direct Scanout behält.
+- Windows: rahmenloses Fenster im Vordergrund. Warframe muss dafür im Modus „Randloses Vollbild“ oder „Fenster“ laufen, nicht im exklusiven Vollbild (ungetestet).
+
+## Stand (0.2.0, Stufe 2)
 - **Bildschirmerkennung:** Alle 1,5 s (einstellbar, abschaltbar) wird geprüft, ob der Belohnungsbildschirm oder der Ausrüsten-Dialog zu sehen ist. Das geht nur, solange Warframe im Vordergrund ist. Die Teile zur Auswahl erscheinen oben mit Preis, das wertvollste ist markiert.
 - **Manueller Scan:** per Taste (einstellbar, Standard: Einfg) oder mit dem Knopf „Jetzt scannen“.
 - Texterkennung mit RapidOCR, läuft lokal und braucht keine Installation im System.

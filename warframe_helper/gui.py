@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -35,7 +36,8 @@ from .data import REFINEMENTS, Market, Price, RelicDB, Reward, expected_value
 from .hotkey import KEYS, HotkeyListener
 from .logwatch import LogWatcher, RelicEquipped, RewardScreenClosed, RewardScreenOpened
 from .paths import cache_dir, find_log, load_config, save_config
-from .scanner import RewardsDetected, RewardsGone, Scanner, ScannerSettings, ScannerStatus
+from .overlay import Item, OverlayManager
+from .scanner import DialogDetected, RewardsDetected, RewardsGone, Scanner, ScannerSettings, ScannerStatus
 
 RARITY_COLORS = {"Common": "#c08a5a", "Uncommon": "#c0c0c0", "Rare": "#e8c547"}
 RELIC_COLUMNS = ("Teil", "Seltenheit", "Chance", "Platin", "ab", "Ducats")
@@ -48,6 +50,8 @@ DEFAULTS = {
     "hotkey": "Einfg",
     "monitor": "",
     "debug_save": True,
+    "overlay": True,
+    "overlay_seconds": 5.0,
 }
 
 
@@ -127,6 +131,19 @@ class SettingsDialog(QDialog):
         self.monitor.setCurrentIndex(max(0, index))
         form.addRow("Bildschirm", self.monitor)
 
+        self.overlay = QCheckBox("Overlay über dem Spiel anzeigen")
+        self.overlay.setChecked(config["overlay"])
+        form.addRow(self.overlay)
+
+        self.overlay_seconds = QDoubleSpinBox()
+        self.overlay_seconds.setRange(1.0, 30.0)
+        self.overlay_seconds.setSingleStep(1.0)
+        self.overlay_seconds.setDecimals(0)
+        self.overlay_seconds.setSuffix(" s")
+        self.overlay_seconds.setValue(config["overlay_seconds"])
+        self.overlay_seconds.setToolTip("Wie lange die Relikt-Info nach dem Ausrüsten-Dialog sichtbar bleibt")
+        form.addRow("Relikt-Info anzeigen für", self.overlay_seconds)
+
         self.debug = QCheckBox("Erkannte Bildschirme zur Fehlersuche speichern")
         self.debug.setChecked(config["debug_save"])
         self.debug.setToolTip(str(cache_dir() / "scans"))
@@ -144,6 +161,8 @@ class SettingsDialog(QDialog):
             "hotkey": self.hotkey.currentText(),
             "monitor": self.monitor.currentData(),
             "debug_save": self.debug.isChecked(),
+            "overlay": self.overlay.isChecked(),
+            "overlay_seconds": self.overlay_seconds.value(),
         }
 
 
@@ -158,6 +177,9 @@ class MainWindow(QMainWindow):
         self.market: Market | None = None
         self.rewards: list[Reward] = []
         self.choices: list[str] = []
+        self.choice_x: list[float] = []
+        self.overlay: OverlayManager | None = None
+        self.overlay_relic_until = 0.0
         self.prices: dict[str, Price | None] = {}
         self.watcher: LogWatcher | None = None
         self.scanner: Scanner | None = None
@@ -265,6 +287,11 @@ class MainWindow(QMainWindow):
             self.scanner.settings_changed()
         if self.config["hotkey"] != old_hotkey:
             self._start_hotkey()
+        if self.overlay:
+            self.overlay.monitor_name = self.config["monitor"]
+            self.overlay.enabled = self.config["overlay"]
+            if not self.overlay.enabled:
+                self.overlay.hide_all()
 
     def _start_hotkey(self) -> None:
         if self.hotkey:
@@ -308,6 +335,11 @@ class MainWindow(QMainWindow):
 
         self.scanner = Scanner(db.reward_names(), self.bridge.event.emit, self._scanner_settings())
         self.scanner.start()
+        try:
+            self.overlay = OverlayManager(self.config["monitor"])
+            self.overlay.enabled = self.config["overlay"]
+        except Exception as exc:  # Overlay ist Zugabe, das Fenster läuft auch ohne
+            self.statusBar().showMessage(f"Overlay nicht verfügbar: {exc}")
 
     def _on_data_failed(self, message: str) -> None:
         self.title.setText("Relikt-Daten konnten nicht geladen werden")
@@ -340,7 +372,12 @@ class MainWindow(QMainWindow):
     # --- Ereignisse aus Log und Bildschirm --------------------------------
 
     def _on_event(self, event: object) -> None:
-        if isinstance(event, RelicEquipped):
+        if isinstance(event, DialogDetected):
+            relic = event.relic
+            self._show_relic(relic.tier, relic.name, relic.refinement)
+            self.overlay_relic_until = time.monotonic() + self.config["overlay_seconds"]
+            self._update_overlay()
+        elif isinstance(event, RelicEquipped):
             relic = (event.tier, event.name, event.refinement)
             if self.db is None:
                 self.pending_relic = relic
@@ -348,12 +385,16 @@ class MainWindow(QMainWindow):
                 self._show_relic(*relic)
         elif isinstance(event, RewardsDetected):
             self.choices = [c.name for c in event.cards]
+            self.choice_x = [float(c.x) for c in event.cards]
             self.choice_title.setText("Belohnungsauswahl")
             self._fetch_prices(self.choices)
             self.raise_()
         elif isinstance(event, (RewardsGone, RewardScreenClosed)):
             if self.choices:
                 self.choice_title.setText("Letzte Belohnungsauswahl")
+            self.choice_x = []
+            if self.overlay:
+                self.overlay.hide_rewards()
         elif isinstance(event, RewardScreenOpened):
             # Das Log kommt oft verspätet, der Bildschirm-Scan ist schneller
             self._scan_now()
@@ -419,6 +460,36 @@ class MainWindow(QMainWindow):
     def _fill_tables(self) -> None:
         self._fill_choices()
         self._fill_relic()
+        self._update_overlay()
+
+    def _update_overlay(self) -> None:
+        if not self.overlay:
+            return
+        # Preise unter den Karten, solange der Belohnungsbildschirm offen ist
+        if self.choice_x:
+            best = max(self.choices, key=lambda n: self._value(n) or 0)
+            items = []
+            for name, x in zip(self.choices, self.choice_x):
+                ducats = self.market.ducats(name) if self.market else None
+                value = self._value(name)
+                items.append(
+                    Item(
+                        x,
+                        (f"{_fmt_num(value)} Platin", f"{_fmt_num(ducats)} Ducats"),
+                        best=bool(value) and name == best,
+                    )
+                )
+            self.overlay.show_rewards(items)
+        # Kurzinfo zum Relikt unter dem Ausrüsten-Dialog
+        if self.rewards and time.monotonic() < self.overlay_relic_until:
+            values = {r.name: self._value(r.name) for r in self.rewards}
+            best = max(self.rewards, key=lambda r: values.get(r.name) or 0)
+            ev = expected_value(self.rewards, values)
+            second = f"Ø {_fmt_num(ev, 1)} Platin pro Öffnung"
+            if values.get(best.name):
+                second += f"  ·  Top: {best.name.replace(' Blueprint', ' BP')} ({_fmt_num(values[best.name])} P)"
+            remaining = self.overlay_relic_until - time.monotonic()
+            self.overlay.show_relic((self.title.text(), second), seconds=remaining)
 
     def _fill_choices(self) -> None:
         table = self.choice_table
@@ -486,6 +557,8 @@ class MainWindow(QMainWindow):
             self.scanner.stop()
         if self.hotkey:
             self.hotkey.stop()
+        if self.overlay:
+            self.overlay.close()
         self.pool.shutdown(wait=False, cancel_futures=True)
         super().closeEvent(event)
 
