@@ -4,9 +4,18 @@ Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](
 
 > **Hinweis:** Kein offizielles Produkt, nicht mit Digital Extremes verbunden. Warframe ist eine Marke von Digital Extremes Ltd.
 
-Mit Hilfe von Claude (Anthropic) entwickelt.
+Mit Hilfe von Claude (Anthropic) entwickelt. Lizenz: [MIT](LICENSE).
 
-## Stand (0.3.0, Stufe 3, im Test)
+## Herunterladen
+Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/MariusPrell/warframe-helper/releases/latest).
+- **Windows:** `warframe-helper-windows.zip` entpacken, `warframe-helper.exe` im Ordner `warframe-helper` starten. Beim ersten Start warnt Windows eventuell („Windows hat den PC geschützt“), weil das Programm nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
+- **Linux:** `warframe-helper-linux.tar.gz` entpacken, `warframe-helper/warframe-helper` starten.
+- Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay).
+
+## Stand (0.4.0)
+- Fertige Pakete für Windows und Linux, gebaut von GitHub Actions.
+
+## Stand (0.3.0, Stufe 3)
 - **Overlay über dem Spiel:** Unter jeder Belohnungskarte stehen Platin und Ducats, das wertvollste Teil ist grün markiert. Beim Ausrüsten-Dialog erscheint eine Kurzinfo (Dauer einstellbar, Standard 5 s) zum Relikt (Erwartungswert, bestes Teil). In den Einstellungen abschaltbar.
 - Das Overlay lässt Klicks durch und nimmt dem Spiel nicht den Fokus.
 - Hyprland: Platzierung per `hyprctl dispatch` (Lua-Syntax ab 0.55, klassische Syntax ungetestet). Im Leerlauf parkt das Overlay als 1×1-Pixel-Fenster auf einem anderen Monitor, damit das Spiel Direct Scanout behält.

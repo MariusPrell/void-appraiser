@@ -1,7 +1,9 @@
 [project]
 name = "warframe-helper"
-version = "0.3.0"
+version = "0.4.0"
 description = "Zeigt den Platin-Wert von Void-Relikt-Belohnungen (warframe.market)"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.6",
@@ -20,7 +22,7 @@ dev = ["pytest"]
 warframe-helper = "warframe_helper.__main__:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

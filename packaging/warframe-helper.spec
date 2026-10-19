@@ -50,3 +50,8 @@ subprocess.run(
     [sys.executable, os.path.join(SPECPATH, "licenses.py"), os.path.join(DISTPATH, "warframe-helper", "THIRD-PARTY-LICENSES.txt")],
     check=True,
 )
+
+# Eigene Lizenz ebenfalls neben das Programm legen
+import shutil
+
+shutil.copy(os.path.join(SPECPATH, "..", "LICENSE"), os.path.join(DISTPATH, "warframe-helper", "LICENSE.txt"))
