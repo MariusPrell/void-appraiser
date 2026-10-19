@@ -38,6 +38,7 @@ from .hotkey import KEYS, HotkeyListener
 from .logwatch import LogWatcher, RelicEquipped, RewardScreenClosed, RewardScreenOpened
 from .paths import cache_dir, find_log, load_config, save_config
 from .overlay import Item, OverlayManager
+from .dropsearch import DropSearchTab
 from .inventory import InventoryTab
 from .overview import OverviewTab
 from .recognize import NameMatcher
@@ -274,6 +275,8 @@ class MainWindow(QMainWindow):
         self.parts: dict[str, str | None] = {}
         self.inventory_tab = InventoryTab(self._hotkey_text, lambda names: self._fetch_prices(names))
         self.tabs.addTab(self.inventory_tab, "Inventar")
+        self.drop_tab = DropSearchTab(self._open_relic)
+        self.tabs.addTab(self.drop_tab, "Drop-Suche")
         self.setCentralWidget(self.tabs)
 
         self.scan_label = QLabel("Erkennung: startet …")
@@ -322,6 +325,10 @@ class MainWindow(QMainWindow):
         self.hotkey.start()
         if self.hotkey.error:
             self.statusBar().showMessage(f"Taste konnte nicht eingerichtet werden: {self.hotkey.error}")
+
+    def _open_relic(self, tier: str, name: str, refinement: str) -> None:
+        self.tabs.setCurrentWidget(self.relic_page)
+        self._show_relic(tier, name, refinement)
 
     def _hotkey_text(self) -> str:
         key = self.config.get("hotkey", "Aus")

@@ -1,0 +1,92 @@
+[
+ {
+  "place": "Axi P9 Relic",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 11
+ },
+ {
+  "place": "Axi P9 Relic (Exceptional)",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 13
+ },
+ {
+  "place": "Axi P9 Relic (Flawless)",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 17
+ },
+ {
+  "place": "Axi P9 Relic (Radiant)",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 20
+ },
+ {
+  "place": "Axi V12 Relic",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 11
+ },
+ {
+  "place": "Axi V12 Relic (Exceptional)",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 13
+ },
+ {
+  "place": "Axi V12 Relic (Flawless)",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 17
+ },
+ {
+  "place": "Axi V12 Relic (Radiant)",
+  "item": "Gauss Prime Neuroptics Blueprint",
+  "rarity": "Uncommon",
+  "chance": 20
+ },
+ {
+  "place": "Mercury/Apollodorus (<b>Survival</b>), Rotation A",
+  "item": "2,000 Credits Cache",
+  "rarity": "Common",
+  "chance": 50
+ },
+ {
+  "place": "Mercury/Apollodorus (<b>Survival</b>), Rotation A",
+  "item": "100 Endo",
+  "rarity": "Common",
+  "chance": 50
+ },
+ {
+  "place": "Mercury/Apollodorus (<b>Survival</b>), Rotation B",
+  "item": "Parry",
+  "rarity": "Rare",
+  "chance": 7.69
+ },
+ {
+  "place": "Taro Crewship (Level 51 - 100)",
+  "item": "Lavan Glazio Mk Iii",
+  "rarity": "Uncommon",
+  "chance": "2.00"
+ },
+ {
+  "place": "Orokin Storage Container (Level 51 - 75)",
+  "item": "Asterite",
+  "rarity": "Legendary",
+  "chance": null
+ },
+ {
+  "place": "Mars/Tyana Pass (<b>Defense</b>), Rotation C",
+  "item": "Axi S21 Relic",
+  "rarity": "Rare",
+  "chance": 7.9
+ },
+ {
+  "place": "Mars/Tyana Pass (<b>Defense</b>), Rotation C",
+  "item": "Axi D6 Relic",
+  "rarity": "Rare",
+  "chance": 7.9
+ }
+]

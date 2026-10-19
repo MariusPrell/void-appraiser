@@ -17,6 +17,7 @@ Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/Mar
 - Pro Teil: Platin, Ducats, **Ducats pro Platin** sowie Summen. Ab etwa 10 Ducats pro Platin (grün) lohnt sich Baro Ki'Teer, darunter eher der Verkauf an Spieler.
 - Gebaute Warframe-Teile (z. B. „Citrine Prime Chassis“) werden erkannt und als nicht handelbar markiert. Die Anzahl lässt sich per Doppelklick korrigieren.
 - Die Liste bleibt gespeichert (`~/.cache/warframe-helper/inventory.json` bzw. `%LOCALAPPDATA%\warframe-helper\inventory.json`).
+- **Tab „Drop-Suche“:** Suche in den offiziellen Drop-Tabellen von Digital Extremes (über drops.warframestat.us), z. B. „Gauss Neuroptics“. Optional auch im Fundort suchen (was gibt es in „Apollodorus“?). Doppelklick auf ein Relikt zeigt dessen Inhalt und Wert.
 
 ## Stand (0.6.0)
 - **Kleinere Pakete:** Eigene, schlanke Texterkennung direkt auf der ONNX-Runtime statt RapidOCR und OpenCV (dieselben PaddleOCR-Modelle). Ungenutzte Qt-Teile und Systembibliotheken fliegen beim Bauen raus.
