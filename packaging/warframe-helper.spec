@@ -42,3 +42,11 @@ exe = EXE(
     console=False,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="warframe-helper")
+
+# Lizenzen der Fremdsoftware neben das Programm legen
+import subprocess
+
+subprocess.run(
+    [sys.executable, os.path.join(SPECPATH, "licenses.py"), os.path.join(DISTPATH, "warframe-helper", "THIRD-PARTY-LICENSES.txt")],
+    check=True,
+)

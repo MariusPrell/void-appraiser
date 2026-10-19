@@ -2,6 +2,10 @@
 
 Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](https://warframe.market), Relikt-Inhalte von [drops.warframestat.us](https://drops.warframestat.us).
 
+> **Hinweis:** Kein offizielles Produkt, nicht mit Digital Extremes verbunden. Warframe ist eine Marke von Digital Extremes Ltd.
+
+Mit Hilfe von Claude (Anthropic) entwickelt.
+
 ## Stand (0.3.0, Stufe 3, im Test)
 - **Overlay über dem Spiel:** Unter jeder Belohnungskarte stehen Platin und Ducats, das wertvollste Teil ist grün markiert. Beim Ausrüsten-Dialog erscheint eine Kurzinfo (Dauer einstellbar, Standard 5 s) zum Relikt (Erwartungswert, bestes Teil). In den Einstellungen abschaltbar.
 - Das Overlay lässt Klicks durch und nimmt dem Spiel nicht den Fokus.
@@ -56,3 +60,6 @@ Das Programm arbeitet nur passiv von außen, wie WFInfo:
 - fragt öffentliche Web-APIs ab
 
 Es wird **nie**: Spielspeicher lesen, Spieldateien ändern, Eingaben ans Spiel senden oder automatisieren, Netzwerkverkehr des Spiels mitlesen. Änderungen, die gegen diese Regeln verstoßen, gehören nicht in dieses Projekt.
+
+## Fremdlizenzen
+Die fertigen Pakete enthalten Bibliotheken anderer Projekte, u. a. Qt/PySide6 (LGPL-3.0), RapidOCR (Apache-2.0), ONNX Runtime (MIT), OpenCV (Apache-2.0), NumPy (BSD), Pillow (MIT-CMU), mss (MIT) und pynput (LGPL-3.0). Die vollständige Liste mit den Lizenztexten liegt jedem Paket als `THIRD-PARTY-LICENSES.txt` bei und wird beim Bauen erzeugt (`packaging/licenses.py`).
