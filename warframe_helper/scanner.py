@@ -6,6 +6,8 @@ Ablauf pro Durchgang:
 3. "VOID FISSURE/REWARDS": die Karten lesen.
 4. "VOID RELICS/REFINEMENT" (Relikt-Auswahl): die Bildmitte nach dem Ausrüsten-Dialog absuchen.
    Beim manuellen Scan wird der Dialog immer gesucht.
+5. "INVENTORY" mit Kategorie "PRIME PARTS": Hinweis anzeigen. Das Raster wird nur beim
+   manuellen Scan (Taste) gelesen, weil das aufwendig ist.
 """
 
 from __future__ import annotations
@@ -22,15 +24,20 @@ from .recognize import (
     CARDS_REGION,
     DIALOG_REGION,
     HEADER_LINE,
+    CATEGORY_LINE,
+    SCREEN_INVENTORY,
     SCREEN_RELICS,
     SCREEN_REWARDS,
+    GridItem,
     NameMatcher,
     Recognizer,
     RewardCard,
     classify_header,
     crop,
     match_reward_cards,
+    is_prime_parts,
     parse_equip_dialog,
+    read_inventory,
 )
 
 
@@ -57,6 +64,18 @@ class DialogDetected:
 
 
 @dataclass(frozen=True)
+class InventoryVisible:
+    """Inventar mit "PRIME PARTS" ist offen (True) oder wieder zu (False)."""
+
+    visible: bool
+
+
+@dataclass(frozen=True)
+class InventoryScanned:
+    items: tuple[GridItem, ...]
+
+
+@dataclass(frozen=True)
 class ScannerStatus:
     text: str
 
@@ -75,6 +94,11 @@ class Scanner:
         self.on_event = on_event
         self.settings = settings
         self.recognizer = Recognizer(threads=1)
+        # Für das große Inventar-Raster mehr Threads, es läuft nur auf Tastendruck
+        self.big_recognizer = Recognizer(threads=4)
+        self.inventory_matcher: NameMatcher | None = None  # kommt von außen, sobald Marktdaten da sind
+        self._inventory_visible = False
+        self._inventory_misses = 0
         self._wake = threading.Event()
         self._manual = False
         self._stop = False
@@ -153,6 +177,7 @@ class Scanner:
         rect = self._target(manual)
         if rect is None:
             self._rewards_missed()
+            self._inventory_missed()
             return
         self._status("Erkennung: aktiv")
         frame = capture.backend().grab(rect)
@@ -175,6 +200,15 @@ class Scanner:
             return
         if self._rewards_missed():
             return  # Belohnungsbildschirm vermutlich noch offen, nur die Kopfzeile nicht gelesen
+
+        if screen == SCREEN_INVENTORY:
+            category = self.recognizer.read_line(crop(frame, CATEGORY_LINE))
+            if is_prime_parts(category):
+                self._set_inventory_visible(True)
+                if manual:
+                    self._scan_inventory(frame, started)
+                return
+        self._inventory_missed()
         if screen != SCREEN_RELICS and not manual:
             return
 
@@ -189,6 +223,31 @@ class Scanner:
             self._debug_save(frame, "manuell", True)
         if manual:
             self._status(f"Erkennung: manueller Scan fertig ({(time.monotonic() - started) * 1000:.0f} ms)")
+
+    # --- Inventar -----------------------------------------------------------
+
+    def _set_inventory_visible(self, visible: bool) -> None:
+        self._inventory_misses = 0
+        if visible != self._inventory_visible:
+            self._inventory_visible = visible
+            self.on_event(InventoryVisible(visible))
+
+    def _inventory_missed(self) -> None:
+        # Wie beim Belohnungsbildschirm: erst nach mehreren Fehlschlägen ausblenden
+        if self._inventory_visible:
+            self._inventory_misses += 1
+            if self._inventory_misses >= REWARDS_GONE_AFTER:
+                self._set_inventory_visible(False)
+
+    def _scan_inventory(self, frame, started: float) -> None:
+        if self.inventory_matcher is None:
+            self._status("Erkennung: Marktdaten fehlen noch, Inventar später erneut einlesen")
+            return
+        self._status("Erkennung: lese Inventar …")
+        items = read_inventory(frame, self.big_recognizer, self.inventory_matcher)
+        self.on_event(InventoryScanned(tuple(items)))
+        self._debug_save(frame, "inventar", True)
+        self._status(f"Erkennung: {len(items)} Teile eingelesen ({(time.monotonic() - started) * 1000:.0f} ms)")
 
     def _rewards_missed(self) -> bool:
         """Kopfzeile nicht erkannt. Erst nach mehreren Fehlschlägen in Folge gilt der

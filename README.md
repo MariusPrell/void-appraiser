@@ -12,6 +12,12 @@ Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/Mar
 - **Linux:** `warframe-helper-linux.tar.gz` entpacken, `warframe-helper/warframe-helper` starten.
 - Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay). Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9) wird unterstützt.
 
+## Stand (0.7.0)
+- **Tab „Inventar“:** Im Spiel Inventar → Prime Parts öffnen. Oben erscheint ein roter Hinweis. Taste (Standard Einfg) drücken: Alle sichtbaren Teile samt Anzahl werden eingelesen. Scrollen und erneut drücken ergänzt die Liste.
+- Pro Teil: Platin, Ducats, **Ducats pro Platin** sowie Summen. Ab etwa 10 Ducats pro Platin (grün) lohnt sich Baro Ki'Teer, darunter eher der Verkauf an Spieler.
+- Gebaute Warframe-Teile (z. B. „Citrine Prime Chassis“) werden erkannt und als nicht handelbar markiert. Die Anzahl lässt sich per Doppelklick korrigieren.
+- Die Liste bleibt gespeichert (`~/.cache/warframe-helper/inventory.json` bzw. `%LOCALAPPDATA%\warframe-helper\inventory.json`).
+
 ## Stand (0.6.0)
 - **Kleinere Pakete:** Eigene, schlanke Texterkennung direkt auf der ONNX-Runtime statt RapidOCR und OpenCV (dieselben PaddleOCR-Modelle). Ungenutzte Qt-Teile und Systembibliotheken fliegen beim Bauen raus.
 - Kopfzeilen werden robuster erkannt (zwei Teile müssen passen, z. B. „VOID FISSURE“ und „REWARDS“).

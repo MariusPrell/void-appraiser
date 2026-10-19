@@ -25,9 +25,11 @@ from . import capture, hypr
 # Gleiche Schreibweise wie in recognize.py: (x0, y0, x1, y1, Skalierung, Anker)
 REWARDS_AREA = (0.08, 0.525, 0.92, 0.59, 1.0, "center")  # unter den Spielernamen der Karten (bis zu 2 Zeilen)
 RELIC_AREA = (0.30, 0.625, 0.70, 0.70, 1.0, "center")  # unter dem Ausrüsten-Dialog
+HINT_AREA = (0.33, 0.06, 0.67, 0.105, 1.0, "center")  # oben mittig, zwischen Kopfzeile und Kontostand
 
 BG = QColor(12, 18, 28, 225)
 BEST_BG = QColor(45, 106, 79, 240)
+HINT_BG = QColor(170, 30, 30, 235)
 TEXT = QColor(235, 235, 235)
 ACCENT = QColor(232, 197, 71)
 
@@ -37,6 +39,7 @@ class Item:
     x: float  # Mitte relativ zur Fensterbreite (0 bis 1)
     lines: tuple[str, ...]
     best: bool = False
+    bg: QColor | None = None  # eigene Hintergrundfarbe (z. B. roter Hinweis)
 
 
 class OverlayPanel(QWidget):
@@ -87,7 +90,7 @@ class OverlayPanel(QWidget):
             rect.moveLeft(max(1, min(rect.left(), self.width() - box_w - 1)))
             path = QPainterPath()
             path.addRoundedRect(rect, h * 0.15, h * 0.15)
-            p.fillPath(path, BEST_BG if item.best else BG)
+            p.fillPath(path, item.bg or (BEST_BG if item.best else BG))
             line_h = (h - 2 * pad * 0.5) / len(item.lines)
             for i, (f, text) in enumerate(zip(fonts, item.lines)):
                 p.setFont(f)
@@ -131,6 +134,11 @@ class OverlayManager:
         pid = os.getpid()
         self.rewards = OverlayPanel(f"Warframe Helper Overlay Belohnungen {pid}")
         self.relic = OverlayPanel(f"Warframe Helper Overlay Relikt {pid}")
+        self.hint = OverlayPanel(f"Warframe Helper Overlay Hinweis {pid}")
+        self._hint_text = ""
+        self._hint_timer = QTimer()
+        self._hint_timer.setSingleShot(True)
+        self._hint_timer.timeout.connect(self._hint_flash_over)
         self._addresses: dict[OverlayPanel, str] = {}
         self._relic_timer = QTimer()
         self._relic_timer.setSingleShot(True)
@@ -140,7 +148,7 @@ class OverlayManager:
         self._reward_timer.timeout.connect(lambda: self._hide(self.rewards))
         if self.use_hypr:
             self._previous_focus = hypr.active_window()
-            for panel in (self.rewards, self.relic):
+            for panel in self._panels():
                 panel.resize(10, 10)
                 panel.show()
             self._setup_tries = 0
@@ -149,7 +157,7 @@ class OverlayManager:
     # --- Hyprland: Fenster einmalig einrichten ----------------------------
 
     def _hypr_setup(self) -> None:
-        for panel in (self.rewards, self.relic):
+        for panel in self._panels():
             if panel not in self._addresses:
                 address = hypr.find_window(panel.windowTitle())
                 if address:
@@ -157,7 +165,7 @@ class OverlayManager:
                     hypr.setup_overlay(address)
                     self._park(panel)
         self._setup_tries += 1
-        if len(self._addresses) < 2 and self._setup_tries < 40:
+        if len(self._addresses) < len(self._panels()) and self._setup_tries < 40:
             QTimer.singleShot(50, self._hypr_setup)
             return
         # Den Fokus zurückgeben, den das neue Fenster beim Öffnen bekommen hat
@@ -214,11 +222,50 @@ class OverlayManager:
             self._show(self.relic, RELIC_AREA)
         self._relic_timer.start(int(seconds * 1000))
 
+    def _panels(self) -> tuple[OverlayPanel, ...]:
+        return (self.rewards, self.relic, self.hint)
+
+    # --- Roter Hinweis oben (Inventar) ------------------------------------
+
+    def show_hint(self, text: str) -> None:
+        """Dauerhafter Hinweis, bis hide_hint() kommt."""
+        self._hint_text = text
+        if not self._hint_timer.isActive():
+            self._set_hint(text)
+
+    def flash_hint(self, text: str, seconds: float = 4.0) -> None:
+        """Kurze Meldung, danach wieder der dauerhafte Hinweis (falls noch aktiv)."""
+        self._set_hint(text, QColor(45, 106, 79, 240))
+        self._hint_timer.start(int(seconds * 1000))
+
+    def hide_hint(self) -> None:
+        self._hint_text = ""
+        if not self._hint_timer.isActive():
+            self._hide(self.hint)
+
+    def _hint_flash_over(self) -> None:
+        if self._hint_text:
+            self._set_hint(self._hint_text)
+        else:
+            self._hide(self.hint)
+
+    def _set_hint(self, text: str, color: QColor = HINT_BG) -> None:
+        if not self.enabled:
+            return
+        was_visible = bool(self.hint.items)
+        self.hint.set_items([Item(0.5, (text,), bg=color)], full_width=True)
+        if not was_visible:
+            self._show(self.hint, HINT_AREA)
+
     def hide_all(self) -> None:
         self._relic_timer.stop()
         self.hide_rewards()
         self._hide(self.relic)
+        self._hint_timer.stop()
+        self._hint_text = ""
+        self._hide(self.hint)
 
     def close(self) -> None:
         self.rewards.close()
         self.relic.close()
+        self.hint.close()

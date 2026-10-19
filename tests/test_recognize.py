@@ -191,3 +191,43 @@ def test_region_anchors():
     assert region_rect(5120, 1440, region) == (0, 0, 1280, 720)  # bleibt am linken Rand
     centered = (0.25, 0.0, 0.75, 0.5, 1.0, CENTER)
     assert region_rect(5120, 1440, centered) == (1920, 0, 1280, 720)  # mittig: (5120 - 2560) / 2 + 640
+
+
+INVENTORY_NAMES = [
+    "Acceltra Prime Receiver", "Akbronco Prime Blueprint", "Aksomati Prime Receiver", "Atlas Prime Blueprint",
+    "Boltor Prime Stock", "Braton Prime Barrel", "Braton Prime Stock", "Bronco Prime Receiver",
+    "Burston Prime Receiver", "Cedo Prime Receiver", "Cedo Prime Stock", "Citrine Prime Chassis",
+    "Citrine Prime Chassis Blueprint", "Citrine Prime Blueprint", "Daikyu Prime String", "Daikyu Prime Upper Limb",
+    "Daikyu Prime Blueprint", "Dethcube Prime Systems", "Dual Keres Prime Handle", "Epitaph Prime Barrel",
+    "Epitaph Prime Receiver", "Equinox Prime Systems Blueprint", "Equinox Prime Systems", "Guandao Prime Blade",
+    "Helios Prime Cerebrum", "Hikou Prime Stars", "Hildryn Prime Blueprint", "Inaros Prime Chassis Blueprint",
+    "Karyst Prime Blade", "Kestrel Prime Blade", "Kogake Prime Gauntlet", "Lavos Prime Chassis Blueprint",
+    "Lex Prime Receiver", "Masseter Prime Handle", "Mesa Prime Chassis Blueprint", "Nezha Prime Systems Blueprint",
+    "Ninkondi Prime Chain", "Nyx Prime Systems Blueprint", "Nyx Prime Systems", "Nyx Prime Chassis Blueprint",
+    "Octavia Prime Systems Blueprint", "Okina Prime Handle", "Panthera Prime Stock", "Paris Prime Grip",
+    "Paris Prime Lower Limb", "Paris Prime String", "Paris Prime Upper Limb", "Perigale Prime Blueprint",
+    "Quassus Prime Blade",
+]
+
+
+def test_fixture_inventory(recognizer):
+    """Inventar in 32:9 (aus einem verkleinerten Stream-Bild, daher unscharf)."""
+    from PIL import Image
+
+    from warframe_helper.recognize import CATEGORY_LINE, HEADER_LINE, SCREEN_INVENTORY, crop, is_prime_parts, read_inventory
+
+    img = Image.open(FIXTURES / "inventar-prime-parts-32zu9.png").convert("RGB")
+    frame = np.asarray(img.resize((round(img.width * 1440 / img.height), 1440), Image.LANCZOS))
+    assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_INVENTORY
+    assert is_prime_parts(recognizer.read_line(crop(frame, CATEGORY_LINE)))
+
+    items = read_inventory(frame, recognizer, NameMatcher(INVENTORY_NAMES))
+    names = {i.name for i in items}
+    # Nur Teile, die wirklich zu sehen sind, und die gebauten nicht mit Blaupausen verwechseln
+    assert "Nyx Prime Chassis Blueprint" not in names
+    assert "Nyx Prime Systems" not in names
+    assert len(names) >= 38
+    counts = {i.name: i.count for i in items}
+    assert counts["Braton Prime Barrel"] == 2
+    assert counts["Okina Prime Handle"] == 2
+    assert counts["Lex Prime Receiver"] == 1

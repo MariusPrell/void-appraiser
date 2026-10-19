@@ -159,6 +159,26 @@ class Market:
     def item(self, name: str) -> dict | None:
         return self._items.get(name.lower())
 
+    def prime_parts(self) -> dict[str, str | None]:
+        """Alle handelbaren Prime-Teile, dazu gebaute Warframe-Teile.
+
+        Ergebnis: Name -> None für handelbare Teile, oder Name -> Name der Blaupause
+        für gebaute Teile (z. B. "Citrine Prime Chassis" aus "... Chassis Blueprint").
+        Gebaute Warframe-Teile sind nicht handelbar.
+        """
+        parts: dict[str, str | None] = {}
+        for item in self._items.values():
+            tags = item.get("tags", [])
+            name = item.get("i18n", {}).get("en", {}).get("name")
+            if not name or "prime" not in tags or "set" in tags:
+                continue
+            if "component" not in tags and "blueprint" not in tags:
+                continue
+            parts[name] = None
+            if "component" in tags and "blueprint" in tags and name.endswith(" Blueprint"):
+                parts.setdefault(name.removesuffix(" Blueprint"), name)
+        return parts
+
     def ducats(self, name: str) -> int | None:
         item = self.item(name)
         return item.get("ducats") if item else None

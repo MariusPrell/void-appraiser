@@ -25,13 +25,14 @@ LEFT, CENTER, RIGHT = "left", "center", "right"
 # Kopfzeile oben links, z. B. "VOID FISSURE/REWARDS" oder "VOID RELICS/REFINEMENT".
 # Nur Zeilenerkennung ohne Textsuche, sehr billig. Breit, weil Trupp-Symbole
 # davor den Text nach rechts schieben.
-HEADER_LINE = (0.04, 0.02, 0.52, 0.075, 0.5, LEFT)
+HEADER_LINE = (0.04, 0.015, 0.52, 0.09, 0.5, LEFT)
 CARDS_REGION = (0.08, 0.36, 0.92, 0.465, 1.0, CENTER)
 # Text des Ausrüsten-Dialogs in der Bildmitte
 DIALOG_REGION = (0.34, 0.40, 0.66, 0.52, 0.8, CENTER)
 
 SCREEN_REWARDS = "rewards"
 SCREEN_RELICS = "relics"
+SCREEN_INVENTORY = "inventory"
 # Relikt-Auswahl gibt es im Orbiter (REFINEMENT) und während Endlos-Missionen (SELECT RELIC).
 # Jede Kopfzeile besteht aus zwei Teilen, die beide (unscharf) vorkommen müssen.
 # So zählt z. B. "VOID FISSURES" (Navigation) nicht als Belohnungsbildschirm.
@@ -39,7 +40,11 @@ _HEADERS = [
     (SCREEN_REWARDS, ("VOIDFISSURE", "REWARDS")),
     (SCREEN_RELICS, ("VOIDRELICS", "REFINEMENT")),
     (SCREEN_RELICS, ("VOIDFISSURE", "SELECTRELIC")),
+    (SCREEN_INVENTORY, ("INVENTORY",)),
 ]
+
+# Unter der Kopfzeile des Inventars steht die Kategorie, z. B. "PRIME PARTS"
+CATEGORY_LINE = (0.035, 0.092, 0.17, 0.14, 1.0, LEFT)
 # Echte Kopfzeilen erreichen trotz OCR-Fehlern mindestens ~0,82, andere Bildschirme höchstens ~0,45
 HEADER_CUTOFF = 0.7
 
@@ -206,8 +211,42 @@ class NameMatcher:
         found = difflib.get_close_matches(key, self._keys, n=1, cutoff=MATCH_CUTOFF)
         if not found:
             return None
+        # Ein Bruchstück (z. B. nur die zweite Zeile "Chassis Blueprint") darf nicht zu
+        # einem viel längeren Namen passen
+        if len(key) < 0.8 * len(found[0]):
+            return None
+        # Der Name vor "PRIME" (Warframe oder Waffe) muss ebenfalls passen, sonst entscheidet
+        # bei unleserlichem Anfang nur die Länge (z. B. "..IME CHASSIS BLUEPRINT" -> Nyx)
+        base = found[0].split("PRIME")[0] if "PRIME" in found[0] else ""
+        if base and _best_window_ratio(key[: len(base) + 2], base) < 0.6:
+            return None
         ratio = difflib.SequenceMatcher(None, key, found[0]).ratio()
         return self._by_key[found[0]], ratio
+
+
+def _line_below(box: TextBox, other: TextBox) -> bool:
+    """Ist other die nächste Zeile desselben Namens (direkt darunter, horizontal überlappend)?
+    Die gefundenen Kästen sind etwas vergrößert und überlappen sich deshalb oft leicht."""
+    height = box.y1 - box.y0
+    return (
+        other.y0 > box.y0 + 0.3 * height
+        and other.y0 - box.y1 < 1.2 * height
+        and other.x0 < box.x1
+        and other.x1 > box.x0
+    )
+
+
+def _name_options(boxes: list[TextBox], i: int) -> list[tuple[str, TextBox]]:
+    """Mögliche Namen ab Zeile i: die Zeile allein, mit der nächsten und mit zwei weiteren."""
+    box = boxes[i]
+    options = [(box.text, box)]
+    for second in boxes[i + 1 :]:
+        if _line_below(box, second):
+            options.append((f"{box.text} {second.text}", second))
+            for third in boxes[i + 1 :]:
+                if third is not second and _line_below(second, third):
+                    options.append((f"{box.text} {second.text} {third.text}", third))
+    return options
 
 
 def match_reward_cards(boxes: list[TextBox], matcher: NameMatcher) -> list[RewardCard]:
@@ -215,12 +254,7 @@ def match_reward_cards(boxes: list[TextBox], matcher: NameMatcher) -> list[Rewar
     boxes = sorted(boxes, key=lambda b: (b.y0, b.x0))
     candidates: list[RewardCard] = []
     for i, box in enumerate(boxes):
-        options = [(box.text, box.cx)]
-        # Zweite Zeile: direkt darunter und horizontal überlappend
-        for other in boxes[i + 1 :]:
-            height = box.y1 - box.y0
-            if 0 <= other.y0 - box.y1 < 1.2 * height and other.x0 < box.x1 and other.x1 > box.x0:
-                options.append((f"{box.text} {other.text}", (box.cx + other.cx) / 2))
+        options = [(text, (box.cx + last.cx) / 2) for text, last in _name_options(boxes, i)]
         for text, cx in options:
             if found := matcher.match(text):
                 candidates.append(RewardCard(found[0], cx, found[1]))
@@ -231,3 +265,120 @@ def match_reward_cards(boxes: list[TextBox], matcher: NameMatcher) -> list[Rewar
         if all(abs(cand.x - c.x) > 0.06 for c in cards):
             cards.append(cand)
     return sorted(cards, key=lambda c: c.x)
+
+
+# --- Inventar (Prime Parts) -----------------------------------------------
+
+
+def is_prime_parts(box: TextBox) -> bool:
+    return _best_window_ratio(_squash(box.text), "PRIMEPARTS") >= 0.75
+
+
+def inventory_grid_rect(width: int, height: int) -> tuple[int, int, int, int]:
+    """Bereich mit den Teile-Kacheln. Das Raster beginnt links und reicht bis zur
+    Verkaufs-Spalte am rechten Rand; auf breiten Bildschirmen hat es mehr Spalten."""
+    ax, ay, aw, ah = ui_area(width, height)
+    x0 = int(0.03 * ah)
+    x1 = width - int(0.56 * ah)
+    return x0, ay + int(0.165 * ah), max(1, x1 - x0), int(0.82 * ah)
+
+
+@dataclass(frozen=True)
+class GridItem:
+    name: str
+    count: int
+    x: float  # Mitte des Namens in Pixeln
+    y: float  # Oberkante des Namens in Pixeln
+    confidence: float
+
+
+_BADGE = re.compile(r"^\W{0,2}\s*(\d{1,3})$")
+
+
+def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) -> list[GridItem]:
+    """Teile im Inventar-Raster erkennen, samt Anzahl aus den kleinen Abzeichen ("✓2").
+
+    boxes in Pixeln, unit = Bildhöhe der Spieloberfläche (alle Abstände skalieren damit).
+    """
+    badges = []
+    texts = []
+    for box in boxes:
+        m = _BADGE.match(_plain(box.text).strip())
+        if m:
+            if int(m[1]) >= 2:  # einzelne Teile haben kein Abzeichen
+                badges.append((box, int(m[1])))
+        else:
+            texts.append(box)
+
+    texts.sort(key=lambda b: (b.y0, b.x0))
+    candidates = []
+    for i, box in enumerate(texts):
+        for text, last in _name_options(texts, i):
+            if found := matcher.match(text):
+                cx = (min(box.x0, last.x0) + max(box.x1, last.x1)) / 2
+                candidates.append((found[1], len(text), found[0], cx, box.y0))
+    # Pro Kachel nur den besten (bei Gleichstand den längsten) Treffer
+    candidates.sort(key=lambda c: (-c[0], -c[1]))
+    items: list[list] = []
+    for conf, _, name, cx, y in candidates:
+        if all(abs(cx - it[1]) > 0.09 * unit or abs(y - it[2]) > 0.09 * unit for it in items):
+            items.append([name, cx, y, conf, 1])
+
+    # Abzeichen sitzen oben links in der Kachel, etwa 0,1 × Höhe über dem Namen
+    for badge, count in badges:
+        best = None
+        for it in items:
+            dy = it[2] - badge.y1
+            dx = badge.cx - (it[1] - 0.06 * unit)
+            if 0.02 * unit < dy < 0.17 * unit and abs(dx) < 0.07 * unit:
+                score = abs(dx) + abs(dy - 0.09 * unit)
+                if best is None or score < best[0]:
+                    best = (score, it)
+        if best:
+            best[1][4] = count
+
+    items.sort(key=lambda it: (round(it[2] / (0.05 * unit)), it[1]))
+    return [GridItem(name, count, cx, y, conf) for name, cx, y, conf, count in items]
+
+
+def read_inventory(frame: np.ndarray, recognizer: "Recognizer", matcher: NameMatcher) -> list[GridItem]:
+    """Sichtbare Teile im Inventar lesen (aufwendig, nur auf Tastendruck).
+
+    Zweiter Durchgang: Steht über einem Namensrest ("Receiver") kein erkannter Text,
+    wird die Zeile darüber gezielt gelesen. Die erste Zeile liegt oft auf dem
+    Bild des Teils und wird bei der Textsuche leicht übersehen.
+    """
+    height, width = frame.shape[:2]
+    unit = ui_area(width, height)[3]
+    gx, gy, gw, gh = inventory_grid_rect(width, height)
+    grid = np.ascontiguousarray(frame[gy : gy + gh, gx : gx + gw])
+    boxes = [
+        TextBox(b.text, b.x0 * gw, b.y0 * gh, b.x1 * gw, b.y1 * gh, b.score) for b in recognizer.read(grid)
+    ]
+
+    def read_at(x_center: float, y0: float, y1: float) -> None:
+        x0 = int(max(0, x_center - 0.09 * unit))
+        x1 = int(min(gw, x_center + 0.09 * unit))
+        y0, y1 = int(max(0, y0)), int(min(gh, y1))
+        if x1 - x0 < 10 or y1 - y0 < 8:
+            return
+        line = recognizer.read_line(np.ascontiguousarray(grid[y0:y1, x0:x1]))
+        if line.text:
+            extra.append(TextBox(line.text, x0, y0, x1, y1, line.score))
+
+    extra: list[TextBox] = []
+    for box in boxes:
+        if _BADGE.match(_plain(box.text).strip()):
+            continue
+        line_h = box.y1 - box.y0
+        has_prime = _best_window_ratio(_squash(box.text), "PRIME") >= 0.8
+        if not has_prime and not any(_line_below(other, box) for other in boxes):
+            # Namensrest ohne erste Zeile: darüber lesen
+            read_at(box.cx, box.y0 - 0.95 * line_h, box.y0 + 0.15 * line_h)
+        elif has_prime and not any(_line_below(box, other) for other in boxes):
+            # Erste Zeile ohne zweite: darunter lesen, falls der Name unvollständig sein kann
+            exact = matcher.match(box.text)
+            complete = exact and exact[1] == 1.0 and not matcher.match(exact[0] + " Blueprint")
+            if not complete:
+                read_at(box.cx, box.y1 - 0.15 * line_h, box.y1 + 0.95 * line_h)
+    return match_grid_items(boxes + extra, matcher, unit)

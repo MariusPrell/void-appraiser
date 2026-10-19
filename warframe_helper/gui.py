@@ -38,8 +38,19 @@ from .hotkey import KEYS, HotkeyListener
 from .logwatch import LogWatcher, RelicEquipped, RewardScreenClosed, RewardScreenOpened
 from .paths import cache_dir, find_log, load_config, save_config
 from .overlay import Item, OverlayManager
+from .inventory import InventoryTab
 from .overview import OverviewTab
-from .scanner import DialogDetected, RewardsDetected, RewardsGone, Scanner, ScannerSettings, ScannerStatus
+from .recognize import NameMatcher
+from .scanner import (
+    DialogDetected,
+    InventoryScanned,
+    InventoryVisible,
+    RewardsDetected,
+    RewardsGone,
+    Scanner,
+    ScannerSettings,
+    ScannerStatus,
+)
 
 RARITY_COLORS = {"Common": "#c08a5a", "Uncommon": "#c0c0c0", "Rare": "#e8c547"}
 RELIC_COLUMNS = ("Teil", "Seltenheit", "Chance", "Platin", "ab", "Ducats")
@@ -260,6 +271,9 @@ class MainWindow(QMainWindow):
         self.overview = OverviewTab(self.config, save_config)
         self.tabs.addTab(self.overview, "Overview")
         self.tabs.addTab(self.relic_page, "Relikte")
+        self.parts: dict[str, str | None] = {}
+        self.inventory_tab = InventoryTab(self._hotkey_text, lambda names: self._fetch_prices(names))
+        self.tabs.addTab(self.inventory_tab, "Inventar")
         self.setCentralWidget(self.tabs)
 
         self.scan_label = QLabel("Erkennung: startet …")
@@ -309,6 +323,10 @@ class MainWindow(QMainWindow):
         if self.hotkey.error:
             self.statusBar().showMessage(f"Taste konnte nicht eingerichtet werden: {self.hotkey.error}")
 
+    def _hotkey_text(self) -> str:
+        key = self.config.get("hotkey", "Aus")
+        return "„Jetzt scannen“" if key == "Aus" else key
+
     def _scan_now(self) -> None:
         if self.scanner:
             self.scanner.scan_now()
@@ -342,7 +360,15 @@ class MainWindow(QMainWindow):
             self.title.setText("Kein Relikt gewählt")
 
         self.scanner = Scanner(db.reward_names(), self.bridge.event.emit, self._scanner_settings())
+        # Für das Inventar alle Prime-Teile vom Markt (auch aus nicht mehr erhältlichen Relikten)
+        self.parts = market.prime_parts()
+        self.scanner.inventory_matcher = NameMatcher(list(self.parts))
         self.scanner.start()
+        self.inventory_tab.ducats = market.ducats
+        for name in self.inventory_tab.store.items:
+            self.prices.setdefault(name, market.cached_price(name))
+        self.inventory_tab.prices = self.prices
+        self.inventory_tab.refresh()
         try:
             self.overlay = OverlayManager(self.config["monitor"])
             self.overlay.enabled = self.config["overlay"]
@@ -413,6 +439,19 @@ class MainWindow(QMainWindow):
         elif isinstance(event, RewardScreenOpened):
             # Das Log kommt oft verspätet, der Bildschirm-Scan ist schneller
             self._scan_now()
+        elif isinstance(event, InventoryVisible):
+            if self.overlay:
+                if event.visible:
+                    self.overlay.show_hint(f"{self._hotkey_text()} drücken: Prime-Teile einlesen")
+                else:
+                    self.overlay.hide_hint()
+        elif isinstance(event, InventoryScanned):
+            new = self.inventory_tab.add_scan(list(event.items), self.parts)
+            self.tabs.setCurrentWidget(self.inventory_tab)
+            if self.overlay:
+                self.overlay.flash_hint(
+                    f"✓ {len(event.items)} Teile erkannt, {new} neu · scrollen und erneut {self._hotkey_text()} drücken"
+                )
         elif isinstance(event, ScannerStatus):
             self.scan_label.setText(event.text)
 
@@ -479,6 +518,9 @@ class MainWindow(QMainWindow):
     def _fill_tables(self) -> None:
         self._fill_choices()
         self._fill_relic()
+        if hasattr(self, "inventory_tab"):
+            self.inventory_tab.prices = self.prices
+            self.inventory_tab.refresh()
         self._update_overlay()
 
     def _update_overlay(self) -> None:
