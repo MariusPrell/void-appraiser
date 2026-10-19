@@ -108,6 +108,10 @@ class RelicDB:
     def rewards(self, tier: str, name: str, refinement: str = "Intact") -> list[Reward] | None:
         return self._relics.get((tier, name.upper(), refinement))
 
+    def reward_names(self) -> list[str]:
+        """Alle Teile, die aus irgendeinem Relikt kommen können."""
+        return sorted({r.name for rewards in self._relics.values() for r in rewards})
+
     def names(self, tier: str | None = None) -> list[str]:
         """Sortierte Reliktnamen wie "Axi C12"."""
         found = {(t, n) for (t, n, _) in self._relics if tier in (None, t)}

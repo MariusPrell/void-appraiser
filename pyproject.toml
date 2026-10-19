@@ -1,12 +1,19 @@
 [project]
 name = "warframe-helper"
-version = "0.1.0"
+version = "0.2.0"
 description = "Zeigt den Platin-Wert von Void-Relikt-Belohnungen (warframe.market)"
 requires-python = ">=3.10"
-dependencies = ["PySide6>=6.6"]
+dependencies = [
+    "PySide6>=6.6",
+    "rapidocr>=3",
+    "onnxruntime",
+    "numpy",
+    "pillow",
+    "mss",
+    "pynput",
+]
 
 [project.optional-dependencies]
-ocr = ["rapidocr", "onnxruntime"]
 dev = ["pytest"]
 
 [project.scripts]

@@ -1,4 +1,4 @@
-"""Hauptfenster: zeigt Inhalt und Wert des aktuellen Relikts."""
+"""Hauptfenster: zeigt die Teile zur Auswahl und den Inhalt des aktuellen Relikts."""
 
 from __future__ import annotations
 
@@ -10,9 +10,14 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QAction, QBrush, QColor, QFont
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QCompleter,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -25,13 +30,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import __version__
+from . import __version__, capture
 from .data import REFINEMENTS, Market, Price, RelicDB, Reward, expected_value
-from .logwatch import Event, LogWatcher, RelicEquipped, RewardScreenClosed, RewardScreenOpened
-from .paths import find_log, load_config, save_config
+from .hotkey import KEYS, HotkeyListener
+from .logwatch import LogWatcher, RelicEquipped, RewardScreenClosed, RewardScreenOpened
+from .paths import cache_dir, find_log, load_config, save_config
+from .scanner import RewardsDetected, RewardsGone, Scanner, ScannerSettings, ScannerStatus
 
 RARITY_COLORS = {"Common": "#c08a5a", "Uncommon": "#c0c0c0", "Rare": "#e8c547"}
-COLUMNS = ("Teil", "Seltenheit", "Chance", "Platin", "ab", "Ducats")
+RELIC_COLUMNS = ("Teil", "Seltenheit", "Chance", "Platin", "ab", "Ducats")
+CHOICE_COLUMNS = ("Teil", "Platin", "ab", "Ducats")
+BEST_COLOR = "#2d6a4f"
+
+DEFAULTS = {
+    "auto_scan": True,
+    "scan_interval": 1.5,
+    "hotkey": "Einfg",
+    "monitor": "",
+    "debug_save": True,
+}
 
 
 def _fmt_num(value: float | None, digits: int = 0) -> str:
@@ -53,38 +70,112 @@ class SortItem(QTableWidgetItem):
         return super().__lt__(other)
 
 
+def _make_table(columns: tuple[str, ...]) -> QTableWidget:
+    table = QTableWidget(0, len(columns))
+    table.setHorizontalHeaderLabels(columns)
+    table.verticalHeader().hide()
+    table.setEditTriggers(QTableWidget.NoEditTriggers)
+    table.setSelectionBehavior(QTableWidget.SelectRows)
+    header = table.horizontalHeader()
+    header.setSectionResizeMode(0, QHeaderView.Stretch)
+    for col in range(1, len(columns)):
+        header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+    return table
+
+
 class Bridge(QObject):
     """Bringt Ergebnisse aus Hintergrund-Threads in den GUI-Thread."""
 
     data_loaded = Signal(object, object)
     data_failed = Signal(str)
-    log_event = Signal(object)
+    event = Signal(object)
     price_ready = Signal(str, object)
+    hotkey = Signal()
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent: QWidget, config: dict):
+        super().__init__(parent)
+        self.setWindowTitle("Einstellungen")
+        form = QFormLayout(self)
+
+        self.auto = QCheckBox("Bildschirm automatisch erkennen")
+        self.auto.setChecked(config["auto_scan"])
+        form.addRow(self.auto)
+
+        self.interval = QDoubleSpinBox()
+        self.interval.setRange(0.5, 10.0)
+        self.interval.setSingleStep(0.5)
+        self.interval.setDecimals(1)
+        self.interval.setSuffix(" s")
+        self.interval.setValue(config["scan_interval"])
+        form.addRow("Alle", self.interval)
+
+        self.hotkey = QComboBox()
+        self.hotkey.addItems(list(KEYS))
+        self.hotkey.setCurrentText(config["hotkey"])
+        form.addRow("Taste für manuellen Scan", self.hotkey)
+
+        self.monitor = QComboBox()
+        self.monitor.addItem("Automatisch (Warframe-Fenster)", "")
+        try:
+            for mon in capture.backend().monitors():
+                self.monitor.addItem(f"{mon.name} ({mon.rect.w}×{mon.rect.h})", mon.name)
+        except Exception:
+            pass
+        index = self.monitor.findData(config["monitor"])
+        self.monitor.setCurrentIndex(max(0, index))
+        form.addRow("Bildschirm", self.monitor)
+
+        self.debug = QCheckBox("Erkannte Bildschirme zur Fehlersuche speichern")
+        self.debug.setChecked(config["debug_save"])
+        self.debug.setToolTip(str(cache_dir() / "scans"))
+        form.addRow(self.debug)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+
+    def values(self) -> dict:
+        return {
+            "auto_scan": self.auto.isChecked(),
+            "scan_interval": self.interval.value(),
+            "hotkey": self.hotkey.currentText(),
+            "monitor": self.monitor.currentData(),
+            "debug_save": self.debug.isChecked(),
+        }
 
 
 class MainWindow(QMainWindow):
     def __init__(self, log_path: Path | None):
         super().__init__()
         self.setWindowTitle(f"Warframe Helper {__version__}")
-        self.resize(720, 420)
+        self.resize(760, 640)
 
-        self.config = load_config()
+        self.config = {**DEFAULTS, **load_config()}
         self.db: RelicDB | None = None
         self.market: Market | None = None
         self.rewards: list[Reward] = []
+        self.choices: list[str] = []
         self.prices: dict[str, Price | None] = {}
         self.watcher: LogWatcher | None = None
+        self.scanner: Scanner | None = None
+        self.hotkey: HotkeyListener | None = None
+        self.pending_relic: tuple[str, str, str] | None = None
         self.log_path = log_path
         self.pool = ThreadPoolExecutor(max_workers=2)
 
         self.bridge = Bridge()
         self.bridge.data_loaded.connect(self._on_data_loaded)
         self.bridge.data_failed.connect(self._on_data_failed)
-        self.bridge.log_event.connect(self._on_log_event)
+        self.bridge.event.connect(self._on_event)
         self.bridge.price_ready.connect(self._on_price_ready)
+        self.bridge.hotkey.connect(self._scan_now)
 
         self._build_ui()
         self._start_watcher()
+        self._start_hotkey()
         threading.Thread(target=self._load_data, daemon=True).start()
 
     # --- Aufbau -----------------------------------------------------------
@@ -92,7 +183,19 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget()
         layout = QVBoxLayout(central)
+        big = QFont()
+        big.setPointSize(big.pointSize() + 4)
+        big.setBold(True)
 
+        # Auswahl auf dem Belohnungsbildschirm
+        self.choice_title = QLabel("Belohnungsauswahl: noch nichts erkannt")
+        self.choice_title.setFont(big)
+        layout.addWidget(self.choice_title)
+        self.choice_table = _make_table(CHOICE_COLUMNS)
+        self.choice_table.setMaximumHeight(170)
+        layout.addWidget(self.choice_table)
+
+        # Relikt-Vorschau
         row = QHBoxLayout()
         self.relic_edit = QLineEdit()
         self.relic_edit.setPlaceholderText("Relikt, z. B. Axi C12")
@@ -101,48 +204,80 @@ class MainWindow(QMainWindow):
         self.refine_box = QComboBox()
         self.refine_box.addItems(REFINEMENTS)
         self.refine_box.currentIndexChanged.connect(self._show_from_inputs)
-        self.refresh_btn = QPushButton("Preise aktualisieren")
-        self.refresh_btn.clicked.connect(lambda: self._fetch_prices(force=True))
         row.addWidget(QLabel("Relikt:"))
         row.addWidget(self.relic_edit, 1)
         row.addWidget(self.refine_box)
-        row.addWidget(self.refresh_btn)
         layout.addLayout(row)
 
-        self.banner = QLabel()
-        self.banner.setAlignment(Qt.AlignCenter)
-        self.banner.setStyleSheet("background:#2d6a4f;color:white;padding:6px;border-radius:4px;font-weight:bold")
-        self.banner.hide()
-        layout.addWidget(self.banner)
-
         self.title = QLabel("Lade Relikt-Daten …")
-        font = QFont()
-        font.setPointSize(font.pointSize() + 4)
-        font.setBold(True)
-        self.title.setFont(font)
+        self.title.setFont(big)
         layout.addWidget(self.title)
 
-        self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
-        self.table.verticalHeader().hide()
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table = _make_table(RELIC_COLUMNS)
         self.table.setSortingEnabled(True)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        for col in range(1, len(COLUMNS)):
-            header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
 
         self.summary = QLabel()
         layout.addWidget(self.summary)
 
+        buttons = QHBoxLayout()
+        self.scan_btn = QPushButton("Jetzt scannen")
+        self.scan_btn.clicked.connect(self._scan_now)
+        self.refresh_btn = QPushButton("Preise aktualisieren")
+        self.refresh_btn.clicked.connect(lambda: self._fetch_prices(force=True))
+        buttons.addWidget(self.scan_btn)
+        buttons.addStretch(1)
+        buttons.addWidget(self.refresh_btn)
+        layout.addLayout(buttons)
+
         self.setCentralWidget(central)
 
+        self.scan_label = QLabel("Erkennung: startet …")
+        self.statusBar().addPermanentWidget(self.scan_label)
+
         menu = self.menuBar().addMenu("Datei")
+        settings = QAction("Einstellungen …", self)
+        settings.triggered.connect(self._open_settings)
+        menu.addAction(settings)
         choose_log = QAction("Log-Datei wählen …", self)
         choose_log.triggered.connect(self._choose_log)
         menu.addAction(choose_log)
+
+    # --- Einstellungen ----------------------------------------------------
+
+    def _scanner_settings(self) -> ScannerSettings:
+        return ScannerSettings(
+            auto=self.config["auto_scan"],
+            interval=self.config["scan_interval"],
+            monitor=self.config["monitor"],
+            debug_dir=cache_dir() / "scans" if self.config["debug_save"] else None,
+        )
+
+    def _open_settings(self) -> None:
+        dialog = SettingsDialog(self, self.config)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        old_hotkey = self.config["hotkey"]
+        self.config.update(dialog.values())
+        save_config(self.config)
+        if self.scanner:
+            self.scanner.settings = self._scanner_settings()
+            self.scanner.settings_changed()
+        if self.config["hotkey"] != old_hotkey:
+            self._start_hotkey()
+
+    def _start_hotkey(self) -> None:
+        if self.hotkey:
+            self.hotkey.stop()
+        self.hotkey = HotkeyListener(self.config["hotkey"], self.bridge.hotkey.emit)
+        self.hotkey.start()
+        if self.hotkey.error:
+            self.statusBar().showMessage(f"Taste konnte nicht eingerichtet werden: {self.hotkey.error}")
+
+    def _scan_now(self) -> None:
+        if self.scanner:
+            self.scanner.scan_now()
+            self.scan_label.setText("Erkennung: scanne …")
 
     # --- Daten laden ------------------------------------------------------
 
@@ -171,11 +306,12 @@ class MainWindow(QMainWindow):
         else:
             self.title.setText("Kein Relikt gewählt")
 
+        self.scanner = Scanner(db.reward_names(), self.bridge.event.emit, self._scanner_settings())
+        self.scanner.start()
+
     def _on_data_failed(self, message: str) -> None:
         self.title.setText("Relikt-Daten konnten nicht geladen werden")
         self.statusBar().showMessage(f"Fehler: {message}")
-
-    pending_relic: tuple[str, str, str] | None = None
 
     # --- Log --------------------------------------------------------------
 
@@ -186,30 +322,43 @@ class MainWindow(QMainWindow):
         if self.log_path is None or not self.log_path.is_file():
             self.statusBar().showMessage("Warframe-Log nicht gefunden. Datei → Log-Datei wählen …")
             return
-        self.watcher = LogWatcher(self.log_path, self.bridge.log_event.emit)
+        self.watcher = LogWatcher(self.log_path, self.bridge.event.emit)
         self.watcher.start()
-        self.statusBar().showMessage(f"Log: {self.log_path}")
+        self.statusBar().showMessage("Warframe-Log gefunden")
+        self.statusBar().setToolTip(str(self.log_path))
 
     def _choose_log(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "EE.log wählen", str(Path.home()), "Warframe-Log (EE.log);;Alle Dateien (*)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "EE.log wählen", str(Path.home()), "Warframe-Log (EE.log);;Alle Dateien (*)"
+        )
         if path:
             self.log_path = Path(path)
             self.config["log_path"] = path
             save_config(self.config)
             self._start_watcher()
 
-    def _on_log_event(self, event: Event) -> None:
+    # --- Ereignisse aus Log und Bildschirm --------------------------------
+
+    def _on_event(self, event: object) -> None:
         if isinstance(event, RelicEquipped):
             relic = (event.tier, event.name, event.refinement)
             if self.db is None:
                 self.pending_relic = relic
-            else:
+            elif self.config.get("last_relic") != list(relic) or not self.rewards:
                 self._show_relic(*relic)
+        elif isinstance(event, RewardsDetected):
+            self.choices = [c.name for c in event.cards]
+            self.choice_title.setText("Belohnungsauswahl")
+            self._fetch_prices(self.choices)
+            self.raise_()
+        elif isinstance(event, (RewardsGone, RewardScreenClosed)):
+            if self.choices:
+                self.choice_title.setText("Letzte Belohnungsauswahl")
         elif isinstance(event, RewardScreenOpened):
-            self.banner.setText("Belohnungsbildschirm offen")
-            self.banner.show()
-        elif isinstance(event, RewardScreenClosed):
-            self.banner.hide()
+            # Das Log kommt oft verspätet, der Bildschirm-Scan ist schneller
+            self._scan_now()
+        elif isinstance(event, ScannerStatus):
+            self.scan_label.setText(event.text)
 
     # --- Anzeige ----------------------------------------------------------
 
@@ -231,22 +380,25 @@ class MainWindow(QMainWindow):
         if rewards is None:
             self.title.setText(f"{tier} {name}: unbekanntes Relikt")
             self.rewards = []
-            self._fill_table()
+            self._fill_tables()
             return
         self.config["last_relic"] = [tier, name, refinement]
         save_config(self.config)
         self.title.setText(f"{tier} {name} ({refinement})")
         self.rewards = rewards
-        self._fetch_prices()
+        self._fetch_prices([r.name for r in rewards])
 
-    def _fetch_prices(self, force: bool = False) -> None:
+    def _fetch_prices(self, names: list[str] | None = None, force: bool = False) -> None:
         if not self.market:
             return
-        for reward in self.rewards:
+        if names is None:
+            names = [r.name for r in self.rewards] + self.choices
+        for name in dict.fromkeys(names):
             # Sofort mit dem Cache füllen, dann im Hintergrund nachladen
-            self.prices[reward.name] = self.market.cached_price(reward.name)
-            self.pool.submit(self._price_job, reward.name, force)
-        self._fill_table()
+            if force or name not in self.prices:
+                self.prices[name] = self.market.cached_price(name)
+            self.pool.submit(self._price_job, name, force)
+        self._fill_tables()
 
     def _price_job(self, name: str, force: bool) -> None:
         try:
@@ -256,20 +408,51 @@ class MainWindow(QMainWindow):
         self.bridge.price_ready.emit(name, price)
 
     def _on_price_ready(self, name: str, price: Price | None) -> None:
-        if any(r.name == name for r in self.rewards):
+        if price is not None or name not in self.prices:
             self.prices[name] = price
-            self._fill_table()
+        self._fill_tables()
 
-    def _fill_table(self) -> None:
+    def _value(self, name: str) -> float | None:
+        price = self.prices.get(name)
+        return price.value if price else None
+
+    def _fill_tables(self) -> None:
+        self._fill_choices()
+        self._fill_relic()
+
+    def _fill_choices(self) -> None:
+        table = self.choice_table
+        table.setRowCount(len(self.choices))
+        best = max(self.choices, key=lambda n: self._value(n) or 0, default=None)
+        for row, name in enumerate(self.choices):
+            price = self.prices.get(name)
+            ducats = self.market.ducats(name) if self.market else None
+            cells = [
+                QTableWidgetItem(name),
+                QTableWidgetItem(_fmt_num(self._value(name))),
+                QTableWidgetItem(_fmt_num(price.lowest if price else None)),
+                QTableWidgetItem(_fmt_num(ducats)),
+            ]
+            for col in range(1, len(cells)):
+                cells[col].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            if name == best and self._value(name):
+                for cell in cells:
+                    cell.setBackground(QBrush(QColor(BEST_COLOR)))
+                    cell.setForeground(QBrush(QColor("white")))
+                    font = cell.font()
+                    font.setBold(True)
+                    cell.setFont(font)
+            for col, cell in enumerate(cells):
+                table.setItem(row, col, cell)
+
+    def _fill_relic(self) -> None:
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(self.rewards))
-        values: dict[str, float | None] = {}
+        values = {r.name: self._value(r.name) for r in self.rewards}
         for row, reward in enumerate(self.rewards):
             price = self.prices.get(reward.name)
             ducats = self.market.ducats(reward.name) if self.market else None
-            value = price.value if price else None
-            values[reward.name] = value
-            color = QBrush(QColor(RARITY_COLORS.get(reward.rarity, "#ffffff")))
+            value = values[reward.name]
             cells = [
                 QTableWidgetItem(reward.name),
                 SortItem(reward.rarity, reward.chance),
@@ -278,7 +461,7 @@ class MainWindow(QMainWindow):
                 SortItem(_fmt_num(price.lowest if price else None), price.lowest if price else None),
                 SortItem(_fmt_num(ducats), ducats),
             ]
-            cells[1].setForeground(color)
+            cells[1].setForeground(QBrush(QColor(RARITY_COLORS.get(reward.rarity, "#ffffff"))))
             for col in range(2, len(cells)):
                 cells[col].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             for col, cell in enumerate(cells):
@@ -299,6 +482,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         if self.watcher:
             self.watcher.stop()
+        if self.scanner:
+            self.scanner.stop()
+        if self.hotkey:
+            self.hotkey.stop()
         self.pool.shutdown(wait=False, cancel_futures=True)
         super().closeEvent(event)
 
@@ -306,6 +493,7 @@ class MainWindow(QMainWindow):
 def run(log_path: Path | None = None) -> int:
     app = QApplication.instance() or QApplication([])
     app.setApplicationName("Warframe Helper")
+    app.setDesktopFileName("warframe-helper")
     app.setStyle("Fusion")
     window = MainWindow(log_path or find_log())
     window.show()
