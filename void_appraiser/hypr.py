@@ -105,7 +105,7 @@ def _pin(address: str, enable: bool) -> None:
     )
 
 
-PARK_WORKSPACE = "special:warframe-helper"
+PARK_WORKSPACE = "special:void-appraiser"
 
 
 def _monitor_workspace(monitor: str) -> str | None:

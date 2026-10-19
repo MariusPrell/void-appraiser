@@ -1,6 +1,6 @@
 """Erzeugt THIRD-PARTY-LICENSES.txt für die fertigen Pakete.
 
-Geht von "warframe-helper" aus alle Laufzeit-Abhängigkeiten durch (ohne
+Geht von "void-appraiser" aus alle Laufzeit-Abhängigkeiten durch (ohne
 Extras wie pytest) und sammelt Name, Version, Lizenz, Webseite und die
 mitgelieferten Lizenztexte.
 
@@ -14,7 +14,7 @@ import sys
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 
-ROOT = "warframe-helper"
+ROOT = "void-appraiser"
 LICENSE_FILE = re.compile(r"(LICEN[CS]E|COPYING|NOTICE|AUTHORS)", re.IGNORECASE)
 
 # Pakete ohne eigene Lizenzdateien: Hinweis von Hand
@@ -63,14 +63,14 @@ def collect() -> list:
 
 def render(dists: list) -> str:
     out = [
-        "Warframe Helper – Lizenzen der mitgelieferten Fremdsoftware",
+        "Void Appraiser – Lizenzen der mitgelieferten Fremdsoftware",
         "=" * 60,
         "",
         "Python selbst steht unter der Python Software Foundation License (https://docs.python.org/3/license.html).",
         "",
     ]
     # OCR-Modelle (PaddleOCR, Apache-2.0) liegen als Dateien bei, nicht als Python-Paket
-    models = Path(__file__).parent.parent / "warframe_helper" / "models"
+    models = Path(__file__).parent.parent / "void_appraiser" / "models"
     for name in ("README.md", "MODEL_LICENSES.md", "LICENSE-Apache-2.0.txt"):
         path = models / name
         if path.is_file():

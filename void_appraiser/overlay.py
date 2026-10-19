@@ -132,9 +132,9 @@ class OverlayManager:
         self.use_hypr = isinstance(capture.backend(), capture.HyprlandBackend)
         # PID im Titel, damit sich zwei laufende Instanzen nicht in die Quere kommen
         pid = os.getpid()
-        self.rewards = OverlayPanel(f"Warframe Helper Overlay Belohnungen {pid}")
-        self.relic = OverlayPanel(f"Warframe Helper Overlay Relikt {pid}")
-        self.hint = OverlayPanel(f"Warframe Helper Overlay Hinweis {pid}")
+        self.rewards = OverlayPanel(f"Void Appraiser Overlay Belohnungen {pid}")
+        self.relic = OverlayPanel(f"Void Appraiser Overlay Relikt {pid}")
+        self.hint = OverlayPanel(f"Void Appraiser Overlay Hinweis {pid}")
         self._hint_text = ""
         self._hint_timer = QTimer()
         self._hint_timer.setSingleShot(True)

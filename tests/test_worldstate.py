@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from warframe_helper.worldstate import parse, time_left
+from void_appraiser.worldstate import parse, time_left
 
 RAW = json.loads((Path(__file__).parent / "fixtures/worldstate.json").read_text())
 NOW = datetime.fromisoformat(RAW["timestamp"].replace("Z", "+00:00"))

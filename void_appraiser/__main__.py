@@ -36,7 +36,7 @@ def selftest(image: Path) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="warframe-helper", description="Wert von Void-Relikt-Belohnungen anzeigen")
+    parser = argparse.ArgumentParser(prog="void-appraiser", description="Wert von Void-Relikt-Belohnungen anzeigen")
     parser.add_argument("--log", type=Path, help="Pfad zur EE.log (sonst automatisch gesucht)")
     parser.add_argument("--selftest", type=Path, metavar="BILD", help="Erkennung auf einem Bildschirmfoto testen und beenden")
     args = parser.parse_args()

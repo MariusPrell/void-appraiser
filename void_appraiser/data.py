@@ -16,7 +16,7 @@ from .paths import cache_dir
 
 RELICS_URL = "https://drops.warframestat.us/data/relics.json"
 MARKET_API = "https://api.warframe.market/v2"
-USER_AGENT = f"warframe-helper/{__version__}"
+USER_AGENT = f"void-appraiser/{__version__}"
 
 RELIC_DATA_MAX_AGE = 24 * 3600
 ITEM_LIST_MAX_AGE = 24 * 3600

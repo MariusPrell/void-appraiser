@@ -1,11 +1,11 @@
 # PyInstaller-Bauplan für Windows und Linux.
-# Bauen:  pyinstaller packaging/warframe-helper.spec --noconfirm
-# Ergebnis: dist/warframe-helper/ (Ordner mit Programm und Bibliotheken)
+# Bauen:  pyinstaller packaging/void-appraiser.spec --noconfirm
+# Ergebnis: dist/void-appraiser/ (Ordner mit Programm und Bibliotheken)
 import os
 import sys
 
-# OCR-Modelle und ihre Lizenzen (warframe_helper/models/)
-datas = [(os.path.join(SPECPATH, "..", "warframe_helper", "models", "*"), os.path.join("warframe_helper", "models"))]
+# OCR-Modelle und ihre Lizenzen (void_appraiser/models/)
+datas = [(os.path.join(SPECPATH, "..", "void_appraiser", "models", "*"), os.path.join("void_appraiser", "models"))]
 hiddenimports = []
 if sys.platform.startswith("linux"):
     hiddenimports += ["pynput.keyboard._xorg", "pynput.mouse._xorg"]
@@ -87,20 +87,20 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="warframe-helper",
+    name="void-appraiser",
     console=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, name="warframe-helper")
+coll = COLLECT(exe, a.binaries, a.datas, name="void-appraiser")
 
 # Lizenzen der Fremdsoftware neben das Programm legen
 import subprocess
 
 subprocess.run(
-    [sys.executable, os.path.join(SPECPATH, "licenses.py"), os.path.join(DISTPATH, "warframe-helper", "THIRD-PARTY-LICENSES.txt")],
+    [sys.executable, os.path.join(SPECPATH, "licenses.py"), os.path.join(DISTPATH, "void-appraiser", "THIRD-PARTY-LICENSES.txt")],
     check=True,
 )
 
 # Eigene Lizenz ebenfalls neben das Programm legen
 import shutil
 
-shutil.copy(os.path.join(SPECPATH, "..", "LICENSE"), os.path.join(DISTPATH, "warframe-helper", "LICENSE.txt"))
+shutil.copy(os.path.join(SPECPATH, "..", "LICENSE"), os.path.join(DISTPATH, "void-appraiser", "LICENSE.txt"))

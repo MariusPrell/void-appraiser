@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from warframe_helper import scanner as sc
-from warframe_helper.recognize import TextBox
+from void_appraiser import scanner as sc
+from void_appraiser.recognize import TextBox
 
 
 class FakeRecognizer:
@@ -21,7 +21,7 @@ class FakeRecognizer:
 
 class FakeBackend:
     def game_window(self):
-        from warframe_helper.capture import GameWindow, Rect
+        from void_appraiser.capture import GameWindow, Rect
 
         return GameWindow(Rect(0, 0, 1600, 900), True)
 

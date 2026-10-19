@@ -1,6 +1,6 @@
 import time
 
-from warframe_helper.logwatch import (
+from void_appraiser.logwatch import (
     LogWatcher,
     RelicEquipped,
     RewardScreenClosed,

@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from warframe_helper.logwatch import RelicEquipped
-from warframe_helper.recognize import (
+from void_appraiser.logwatch import RelicEquipped
+from void_appraiser.recognize import (
     SCREEN_RELICS,
     SCREEN_REWARDS,
     NameMatcher,
@@ -105,7 +105,7 @@ def test_ui_area():
 def test_real_screenshot():
     from PIL import Image
 
-    from warframe_helper.recognize import CARDS_REGION, HEADER_LINE, Recognizer, crop
+    from void_appraiser.recognize import CARDS_REGION, HEADER_LINE, Recognizer, crop
 
     frame = np.asarray(Image.open(SCREENSHOT).convert("RGB"))[:, 1920:]  # nur der Spiel-Monitor
     rec = Recognizer()
@@ -119,7 +119,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 @pytest.fixture(scope="module")
 def recognizer():
-    from warframe_helper.recognize import Recognizer
+    from void_appraiser.recognize import Recognizer
 
     return Recognizer()
 
@@ -131,7 +131,7 @@ def _frame(name):
 
 
 def test_fixture_three_cards(recognizer):
-    from warframe_helper.recognize import CARDS_REGION, HEADER_LINE, crop
+    from void_appraiser.recognize import CARDS_REGION, HEADER_LINE, crop
 
     frame = _frame("belohnung-3-karten.png")
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_REWARDS
@@ -150,7 +150,7 @@ def test_fixture_three_cards(recognizer):
     ],
 )
 def test_fixture_dialog(recognizer, name, expected):
-    from warframe_helper.recognize import DIALOG_REGION, HEADER_LINE, crop
+    from void_appraiser.recognize import DIALOG_REGION, HEADER_LINE, crop
 
     frame = _frame(name)
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_RELICS
@@ -171,7 +171,7 @@ def _widen(frame, width):
 
 @pytest.mark.parametrize("width", [3440, 5120])  # 21:9 (UWQHD) und 32:9 bei 1440 px Höhe
 def test_ultrawide(recognizer, width):
-    from warframe_helper.recognize import CARDS_REGION, DIALOG_REGION, HEADER_LINE, crop
+    from void_appraiser.recognize import CARDS_REGION, DIALOG_REGION, HEADER_LINE, crop
 
     frame = _widen(_frame("belohnung-3-karten.png"), width)
     assert classify_header([recognizer.read_line(crop(frame, HEADER_LINE))]) == SCREEN_REWARDS
@@ -184,7 +184,7 @@ def test_ultrawide(recognizer, width):
 
 
 def test_region_anchors():
-    from warframe_helper.recognize import CENTER, LEFT, region_rect
+    from void_appraiser.recognize import CENTER, LEFT, region_rect
 
     region = (0.0, 0.0, 0.5, 0.5, 1.0, LEFT)
     assert region_rect(2560, 1440, region) == (0, 0, 1280, 720)
@@ -214,7 +214,7 @@ def test_fixture_inventory(recognizer):
     """Inventar in 32:9 (aus einem verkleinerten Stream-Bild, daher unscharf)."""
     from PIL import Image
 
-    from warframe_helper.recognize import CATEGORY_LINE, HEADER_LINE, SCREEN_INVENTORY, crop, is_prime_parts, read_inventory
+    from void_appraiser.recognize import CATEGORY_LINE, HEADER_LINE, SCREEN_INVENTORY, crop, is_prime_parts, read_inventory
 
     img = Image.open(FIXTURES / "inventar-prime-parts-32zu9.png").convert("RGB")
     frame = np.asarray(img.resize((round(img.width * 1440 / img.height), 1440), Image.LANCZOS))

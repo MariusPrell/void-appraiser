@@ -27,7 +27,7 @@ from PIL import Image
 
 # Im fertigen Paket liegen die Modelle neben dem Code (PyInstaller: sys._MEIPASS)
 _BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).parent.parent))
-MODEL_DIR = _BASE / "warframe_helper" / "models"
+MODEL_DIR = _BASE / "void_appraiser" / "models"
 DET_MODEL = "PP-OCRv6_det_small.onnx"
 REC_MODEL = "PP-OCRv6_rec_small.onnx"
 

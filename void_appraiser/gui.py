@@ -183,7 +183,7 @@ class SettingsDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self, log_path: Path | None):
         super().__init__()
-        self.setWindowTitle(f"Warframe Helper {__version__}")
+        self.setWindowTitle(f"Void Appraiser {__version__}")
         self.resize(860, 700)
 
         self.config = {**DEFAULTS, **load_config()}
@@ -637,8 +637,8 @@ class MainWindow(QMainWindow):
 
 def run(log_path: Path | None = None) -> int:
     app = QApplication.instance() or QApplication([])
-    app.setApplicationName("Warframe Helper")
-    app.setDesktopFileName("warframe-helper")
+    app.setApplicationName("Void Appraiser")
+    app.setDesktopFileName("void-appraiser")
     app.setStyle("Fusion")
     window = MainWindow(log_path or find_log())
     window.show()

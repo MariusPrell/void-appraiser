@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from warframe_helper.drops import DropTable
+from void_appraiser.drops import DropTable
 
 RAW = json.loads((Path(__file__).parent / "fixtures/drops.json").read_text())
 

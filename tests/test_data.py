@@ -1,4 +1,4 @@
-from warframe_helper.data import RelicDB, Reward, expected_value, price_from_orders
+from void_appraiser.data import RelicDB, Reward, expected_value, price_from_orders
 
 RAW = {
     "relics": [
@@ -63,7 +63,7 @@ def test_expected_value():
 def test_price_retries_after_errors(monkeypatch, tmp_path):
     import urllib.error
 
-    from warframe_helper import data
+    from void_appraiser import data
 
     monkeypatch.setattr(data, "cache_dir", lambda: tmp_path)
     monkeypatch.setattr(data.time, "sleep", lambda s: None)
@@ -83,3 +83,16 @@ def test_price_retries_after_errors(monkeypatch, tmp_path):
     price = market.price("Lex Prime Receiver")
     assert len(calls) == 3
     assert price.median == 8
+
+
+def test_old_app_folder_is_taken_over(monkeypatch, tmp_path):
+    from void_appraiser import paths
+
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setattr(paths.sys, "platform", "linux")
+    old = tmp_path / "warframe-helper"
+    old.mkdir()
+    (old / "inventory.json").write_text("{}")
+    new = paths.cache_dir()
+    assert new == tmp_path / "void-appraiser"
+    assert (new / "inventory.json").exists() and not old.exists()

@@ -19,9 +19,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            archive: warframe-helper-windows.zip
+            archive: void-appraiser-windows.zip
           - os: ubuntu-22.04
-            archive: warframe-helper-linux.tar.gz
+            archive: void-appraiser-linux.tar.gz
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,23 +45,23 @@ jobs:
         run: python -m pytest -q
 
       - name: Paket bauen
-        run: pyinstaller packaging/warframe-helper.spec --noconfirm --distpath dist --workpath build
+        run: pyinstaller packaging/void-appraiser.spec --noconfirm --distpath dist --workpath build
 
       - name: Paket prüfen (Texterkennung im fertigen Programm)
         shell: bash
         run: |
-          exe=dist/warframe-helper/warframe-helper
+          exe=dist/void-appraiser/void-appraiser
           [ "$RUNNER_OS" = "Windows" ] && exe="$exe.exe"
           "$exe" --selftest tests/fixtures/belohnung-3-karten.png
           "$exe" --selftest tests/fixtures/dialog-axi-z2-radiant.png
 
       - name: Packen (Windows)
         if: runner.os == 'Windows'
-        run: Compress-Archive -Path dist/warframe-helper -DestinationPath ${{ matrix.archive }}
+        run: Compress-Archive -Path dist/void-appraiser -DestinationPath ${{ matrix.archive }}
 
       - name: Packen (Linux)
         if: runner.os == 'Linux'
-        run: tar -czf ${{ matrix.archive }} -C dist warframe-helper
+        run: tar -czf ${{ matrix.archive }} -C dist void-appraiser
 
       - uses: actions/upload-artifact@v4
         with:

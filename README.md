@@ -1,4 +1,6 @@
-# Warframe Helper
+# Void Appraiser
+
+*(bis Version 0.7 „Warframe Helper“)*
 
 Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](https://warframe.market), Relikt-Inhalte von [drops.warframestat.us](https://drops.warframestat.us).
 
@@ -7,16 +9,19 @@ Zeigt den Platin-Wert von Void-Relikt-Belohnungen. Preise von [warframe.market](
 Mit Hilfe von Claude (Anthropic) entwickelt. Lizenz: [MIT](LICENSE).
 
 ## Herunterladen
-Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/MariusPrell/warframe-helper/releases/latest).
-- **Windows:** `warframe-helper-windows.zip` entpacken, `warframe-helper.exe` im Ordner `warframe-helper` starten. Beim ersten Start warnt Windows eventuell („Windows hat den PC geschützt“), weil das Programm nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
-- **Linux:** `warframe-helper-linux.tar.gz` entpacken, `warframe-helper/warframe-helper` starten.
+Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/MariusPrell/void-appraiser/releases/latest).
+- **Windows:** `void-appraiser-windows.zip` entpacken, `void-appraiser.exe` im Ordner `void-appraiser` starten. Beim ersten Start warnt Windows eventuell („Windows hat den PC geschützt“), weil das Programm nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
+- **Linux:** `void-appraiser-linux.tar.gz` entpacken, `void-appraiser/void-appraiser` starten.
 - Voraussetzungen: Warframe auf **Englisch** und im Modus **randloses Vollbild** oder Fenster (für das Overlay). Jede Auflösung und jedes Seitenverhältnis (16:9, 21:9, 32:9) wird unterstützt.
+
+## Stand (0.8.0)
+- Neuer Name: **Void Appraiser** (vorher „Warframe Helper“, den Namen nutzen schon andere Projekte). Einstellungen, Inventarliste und Cache werden beim ersten Start automatisch übernommen.
 
 ## Stand (0.7.0)
 - **Tab „Inventar“:** Im Spiel Inventar → Prime Parts öffnen. Oben erscheint ein roter Hinweis. Taste (Standard Einfg) drücken: Alle sichtbaren Teile samt Anzahl werden eingelesen. Scrollen und erneut drücken ergänzt die Liste.
 - Pro Teil: Platin, Ducats, **Ducats pro Platin** sowie Summen. Ab etwa 10 Ducats pro Platin (grün) lohnt sich Baro Ki'Teer, darunter eher der Verkauf an Spieler.
 - Gebaute Warframe-Teile (z. B. „Citrine Prime Chassis“) werden erkannt und als nicht handelbar markiert. Die Anzahl lässt sich per Doppelklick korrigieren.
-- Die Liste bleibt gespeichert (`~/.cache/warframe-helper/inventory.json` bzw. `%LOCALAPPDATA%\warframe-helper\inventory.json`).
+- Die Liste bleibt gespeichert (`~/.cache/void-appraiser/inventory.json` bzw. `%LOCALAPPDATA%\void-appraiser\inventory.json`).
 - **Tab „Drop-Suche“:** Suche in den offiziellen Drop-Tabellen von Digital Extremes (über drops.warframestat.us), z. B. „Gauss Neuroptics“. Optional auch im Fundort suchen (was gibt es in „Apollodorus“?). Doppelklick auf ein Relikt zeigt dessen Inhalt und Wert.
 
 ## Stand (0.6.0)
@@ -41,7 +46,7 @@ Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/Mar
 - **Manueller Scan:** per Taste (einstellbar, Standard: Einfg) oder mit dem Knopf „Jetzt scannen“.
 - Texterkennung mit RapidOCR, läuft lokal und braucht keine Installation im System.
 - Linux: Hyprland (grim, hyprctl) oder X11. Windows: mss und die Win32-API.
-- Einstellungen unter Datei → Einstellungen. Zur Fehlersuche werden erkannte Bildschirme in `~/.cache/warframe-helper/scans` gespeichert (abschaltbar).
+- Einstellungen unter Datei → Einstellungen. Zur Fehlersuche werden erkannte Bildschirme in `~/.cache/void-appraiser/scans` gespeichert (abschaltbar).
 
 ## Stand (0.1.0, Stufe 1)
 - Liest das Warframe-Log (`EE.log`) mit und erkennt das ausgerüstete Relikt samt Veredelung.
@@ -51,13 +56,13 @@ Fertige Pakete für Windows und Linux: [neuestes Release](https://github.com/Mar
 - Nur mit englischem Spielclient (das Log ist sprachabhängig).
 
 ## Pakete bauen (Stufe 4)
-Fertige Programme ohne Python-Installation, gebaut mit PyInstaller (`packaging/warframe-helper.spec`):
+Fertige Programme ohne Python-Installation, gebaut mit PyInstaller (`packaging/void-appraiser.spec`):
 ```bash
 .venv/bin/pip install pyinstaller
-.venv/bin/pyinstaller packaging/warframe-helper.spec --noconfirm --distpath build/dist --workpath build/work
-build/dist/warframe-helper/warframe-helper --selftest tests/fixtures/belohnung-3-karten.png
+.venv/bin/pyinstaller packaging/void-appraiser.spec --noconfirm --distpath build/dist --workpath build/work
+build/dist/void-appraiser/void-appraiser --selftest tests/fixtures/belohnung-3-karten.png
 ```
-Windows-Pakete baut GitHub Actions (`.github/workflows/build.yml`): bei einem Tag `v*` oder von Hand. Ergebnis: `warframe-helper-windows.zip` und `warframe-helper-linux.tar.gz` (gepackt etwa 200 MB).
+Windows-Pakete baut GitHub Actions (`.github/workflows/build.yml`): bei einem Tag `v*` oder von Hand. Ergebnis: `void-appraiser-windows.zip` und `void-appraiser-linux.tar.gz` (gepackt etwa 200 MB).
 
 `--selftest BILD` prüft die Texterkennung auf einem Bildschirmfoto ohne Fenster. Die Testbilder in `tests/fixtures/` enthalten nur Kopfzeile, Kartennamen und Dialogtext, keine Spielernamen.
 
@@ -65,11 +70,11 @@ Windows-Pakete baut GitHub Actions (`.github/workflows/build.yml`): bei einem Ta
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e .          # Windows: .venv\Scripts\pip install -e .
-.venv/bin/warframe-helper           # optional: --log /pfad/zu/EE.log
+.venv/bin/void-appraiser           # optional: --log /pfad/zu/EE.log
 ```
 Das Log wird automatisch gesucht: unter Windows in `%LOCALAPPDATA%\Warframe\EE.log`, unter Linux in allen Steam-Bibliotheken (Proton-Prefix 230410).
 
-Cache: `~/.cache/warframe-helper` bzw. `%LOCALAPPDATA%\warframe-helper`.
+Cache: `~/.cache/void-appraiser` bzw. `%LOCALAPPDATA%\void-appraiser`.
 
 ## Tests
 ```bash
@@ -86,4 +91,4 @@ Das Programm arbeitet nur passiv von außen, wie WFInfo:
 Es wird **nie**: Spielspeicher lesen, Spieldateien ändern, Eingaben ans Spiel senden oder automatisieren, Netzwerkverkehr des Spiels mitlesen. Änderungen, die gegen diese Regeln verstoßen, gehören nicht in dieses Projekt.
 
 ## Fremdlizenzen
-Die fertigen Pakete enthalten Bibliotheken anderer Projekte, u. a. Qt/PySide6 (LGPL-3.0), ONNX Runtime (MIT), die PaddleOCR-Modelle (Apache-2.0, in `warframe_helper/models/`), NumPy (BSD), Pillow (MIT-CMU), mss (MIT) und pynput (LGPL-3.0). Die vollständige Liste mit den Lizenztexten liegt jedem Paket als `THIRD-PARTY-LICENSES.txt` bei und wird beim Bauen erzeugt (`packaging/licenses.py`).
+Die fertigen Pakete enthalten Bibliotheken anderer Projekte, u. a. Qt/PySide6 (LGPL-3.0), ONNX Runtime (MIT), die PaddleOCR-Modelle (Apache-2.0, in `void_appraiser/models/`), NumPy (BSD), Pillow (MIT-CMU), mss (MIT) und pynput (LGPL-3.0). Die vollständige Liste mit den Lizenztexten liegt jedem Paket als `THIRD-PARTY-LICENSES.txt` bei und wird beim Bauen erzeugt (`packaging/licenses.py`).

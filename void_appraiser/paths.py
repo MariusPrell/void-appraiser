@@ -5,12 +5,27 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
-APP_NAME = "warframe-helper"
+APP_NAME = "void-appraiser"
+# Bis Version 0.7 hieß das Programm "Warframe Helper"; dessen Ordner werden übernommen
+OLD_APP_NAME = "warframe-helper"
 WARFRAME_STEAM_ID = "230410"
 LOG_IN_PREFIX = Path("pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")
+
+
+def _app_dir(base: Path) -> Path:
+    """Ordner des Programms; beim ersten Start wird der alte Ordner umbenannt."""
+    path = base / APP_NAME
+    old = base / OLD_APP_NAME
+    if not path.exists() and old.is_dir():
+        try:
+            shutil.move(str(old), str(path))
+        except OSError:
+            pass  # dann eben ohne alte Daten
+    return path
 
 
 def cache_dir() -> Path:
@@ -18,7 +33,7 @@ def cache_dir() -> Path:
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     else:
         base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    path = base / APP_NAME
+    path = _app_dir(base)
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -28,7 +43,7 @@ def config_file() -> Path:
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
     else:
         base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / APP_NAME / "config.json"
+    return _app_dir(base) / "config.json"
 
 
 def load_config() -> dict:
