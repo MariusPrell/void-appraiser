@@ -120,6 +120,13 @@ class DropSearchTab(QWidget):
         self.status.setText(tr("Could not load the drop tables: {error}", error=message))
 
     def _search(self) -> None:
+        from . import easteregg
+
+        if easteregg.is_trigger(self.query.text()) and not getattr(self, "_egg_shown", False):
+            self._egg_shown = True  # once per search term, not on every keystroke
+            easteregg.show(self)
+        elif not easteregg.is_trigger(self.query.text()):
+            self._egg_shown = False
         if self.table_data is None:
             return
         hits, total = self.table_data.search(

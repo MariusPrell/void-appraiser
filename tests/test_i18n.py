@@ -56,3 +56,10 @@ def test_legacy_key_names():
     assert hotkey.normalize("Aus") == "Off"
     assert hotkey.normalize("F9") == "F9"
     assert hotkey.normalize("nonsense") == "Insert"
+
+
+def test_easter_egg_trigger():
+    from void_appraiser import easteregg
+
+    assert easteregg.is_trigger("  Rebecca  Ford ")
+    assert not easteregg.is_trigger("rebecca prime")
