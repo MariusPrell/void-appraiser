@@ -44,6 +44,8 @@ _HEADERS = [
 
 # Below the inventory header is the category, e.g. "PRIME PARTS"
 CATEGORY_LINE = (0.035, 0.092, 0.17, 0.14, 1.0, LEFT)
+# "MISSION COMPLETE" at the top center of the end-of-mission screen
+MISSION_LINE = (0.33, 0.06, 0.67, 0.135, 0.5, CENTER)
 # Real headers score at least ~0.82 despite OCR errors, other screens at most ~0.45
 HEADER_CUTOFF = 0.7
 
@@ -273,6 +275,19 @@ def is_prime_parts(box: TextBox) -> bool:
     return _best_window_ratio(_squash(box.text), "PRIMEPARTS") >= 0.75
 
 
+def is_mission_complete(box: TextBox) -> bool:
+    return _best_window_ratio(_squash(box.text), "MISSIONCOMPLETE") >= 0.8
+
+
+def mission_grid_rect(width: int, height: int) -> tuple[int, int, int, int]:
+    """Region with the received items on the end-of-mission screen. It starts just
+    left of the screen center and reaches the right edge (measured on 32:9)."""
+    ax, ay, aw, ah = ui_area(width, height)
+    x0 = max(0, width // 2 - int(0.17 * ah))
+    x1 = width - int(0.08 * ah)
+    return x0, ay + int(0.565 * ah), max(1, x1 - x0), int(0.36 * ah)
+
+
 def inventory_grid_rect(width: int, height: int) -> tuple[int, int, int, int]:
     """Region with the part tiles. The grid starts on the left and reaches the sell
     column on the right edge; wide screens have more columns."""
@@ -291,7 +306,7 @@ class GridItem:
     confidence: float
 
 
-_BADGE = re.compile(r"^\W{0,2}\s*(\d{1,3})$")
+_BADGE = re.compile(r"^\W{0,2}\s*(\d{1,3}(?:[.,]\d{3})*)$")
 
 
 def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) -> list[GridItem]:
@@ -304,8 +319,9 @@ def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) ->
     for box in boxes:
         m = _BADGE.match(_plain(box.text).strip())
         if m:
-            if int(m[1]) >= 2:  # single parts have no badge
-                badges.append((box, int(m[1])))
+            count = int(re.sub(r"[.,]", "", m[1]))
+            if count >= 2:  # single parts have no badge
+                badges.append((box, count))
         else:
             texts.append(box)
 
@@ -341,7 +357,21 @@ def match_grid_items(boxes: list[TextBox], matcher: NameMatcher, unit: float) ->
 
 
 def read_inventory(frame: np.ndarray, recognizer: "Recognizer", matcher: NameMatcher) -> list[GridItem]:
-    """Read the visible parts in the inventory (expensive, only on a key press).
+    """Read the visible parts in the inventory (expensive, only on demand)."""
+    height, width = frame.shape[:2]
+    return read_grid(frame, inventory_grid_rect(width, height), recognizer, matcher)
+
+
+def read_mission_rewards(frame: np.ndarray, recognizer: "Recognizer", matcher: NameMatcher) -> list[GridItem]:
+    """Read the received items on the end-of-mission screen (same tiles as the inventory)."""
+    height, width = frame.shape[:2]
+    return read_grid(frame, mission_grid_rect(width, height), recognizer, matcher)
+
+
+def read_grid(
+    frame: np.ndarray, rect: tuple[int, int, int, int], recognizer: "Recognizer", matcher: NameMatcher
+) -> list[GridItem]:
+    """Read the item tiles in a region (inventory or end-of-mission screen).
 
     Second pass: if no text was recognized above a name fragment ("Receiver"), the
     line above is read directly. The first line often lies on the picture of the
@@ -350,7 +380,7 @@ def read_inventory(frame: np.ndarray, recognizer: "Recognizer", matcher: NameMat
     """
     height, width = frame.shape[:2]
     unit = ui_area(width, height)[3]
-    gx, gy, gw, gh = inventory_grid_rect(width, height)
+    gx, gy, gw, gh = rect
     grid = np.ascontiguousarray(frame[gy : gy + gh, gx : gx + gw])
     boxes = [
         TextBox(b.text, b.x0 * gw, b.y0 * gh, b.x1 * gw, b.y1 * gh, b.score) for b in recognizer.read(grid)

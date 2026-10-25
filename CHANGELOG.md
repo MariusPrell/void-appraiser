@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0
+- The inventory is read **automatically**: open Prime Parts and scroll, no key needed (the key still works).
+- **Mission rewards:** prime parts listed on the end-of-mission screen ("MISSION COMPLETE") are added to the inventory list automatically.
+
 ## 0.9.0
 - The interface is now in **English** by default; **German** can be selected under File → Settings.
 - Code, documentation and release notes are now in English.

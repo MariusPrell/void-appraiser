@@ -75,6 +75,16 @@ class InventoryStore:
         self.save()
         return new
 
+    def add_received(self, received: list[GridItem], crafted: dict[str, str | None]) -> None:
+        """Parts received in a mission: add to the count (a later inventory scan
+        sets the exact count again)."""
+        now = time.time()
+        for item in received:
+            entry = self.items.setdefault(item.name, {"count": 0, "blueprint": crafted.get(item.name)})
+            entry["count"] = int(entry.get("count", 0)) + item.count
+            entry["seen"] = now
+        self.save()
+
     def set_count(self, name: str, count: int) -> None:
         if name in self.items:
             if count <= 0:
@@ -141,6 +151,11 @@ class InventoryTab(QWidget):
         self.request_prices([i.name for i in items if not crafted.get(i.name)])
         self.refresh()
         return new
+
+    def add_received(self, items: list[GridItem], crafted: dict[str, str | None]) -> None:
+        self.store.add_received(items, crafted)
+        self.request_prices([i.name for i in items if not crafted.get(i.name)])
+        self.refresh()
 
     def _clear(self) -> None:
         answer = QMessageBox.question(self, tr("Clear list"), tr("Remove all scanned parts from the list?"))
@@ -211,9 +226,9 @@ class InventoryTab(QWidget):
         pieces = sum(int(e.get("count", 1)) for e in self.store.items.values())
         self.info.setText(
             tr(
-                "In the game, open <b>Inventory → Prime Parts</b> and press <b>{key}</b>. "
-                "Then scroll and press again, the list is extended. "
-                "Double-click a count to correct it.",
+                "In the game, open <b>Inventory → Prime Parts</b>: the visible parts are read "
+                "automatically (or with <b>{key}</b>). Scroll to add more. Parts you receive in "
+                "missions are added from the end-of-mission screen. Double-click a count to correct it.",
                 key=self.hotkey_label(),
             )
         )

@@ -6,8 +6,10 @@ Each pass:
 3. "VOID FISSURE/REWARDS": read the cards.
 4. "VOID RELICS/REFINEMENT" (relic selection): search the screen center for the equip dialog.
    A manual scan always looks for the dialog.
-5. "INVENTORY" with category "PRIME PARTS": show a hint. The grid is only read on a
-   manual scan (key), because that is expensive.
+5. "INVENTORY" with category "PRIME PARTS": read the grid automatically when it has
+   changed (e.g. after scrolling) and settled, or on a key press.
+6. "MISSION COMPLETE" (end-of-mission screen): read the received prime parts and
+   report them once when the screen closes.
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import numpy as np
+
 from . import capture
 from .i18n import tr
 from .logwatch import RelicEquipped
@@ -26,6 +30,7 @@ from .recognize import (
     DIALOG_REGION,
     HEADER_LINE,
     CATEGORY_LINE,
+    MISSION_LINE,
     SCREEN_INVENTORY,
     SCREEN_RELICS,
     SCREEN_REWARDS,
@@ -36,9 +41,13 @@ from .recognize import (
     classify_header,
     crop,
     match_reward_cards,
+    inventory_grid_rect,
+    is_mission_complete,
     is_prime_parts,
+    mission_grid_rect,
     parse_equip_dialog,
     read_inventory,
+    read_mission_rewards,
 )
 
 
@@ -77,6 +86,13 @@ class InventoryScanned:
 
 
 @dataclass(frozen=True)
+class MissionRewards:
+    """Prime parts received in a mission (read from the end-of-mission screen)."""
+
+    items: tuple[GridItem, ...]
+
+
+@dataclass(frozen=True)
 class ScannerStatus:
     text: str
 
@@ -100,6 +116,16 @@ class Scanner:
         self.inventory_matcher: NameMatcher | None = None  # set from outside once market data is loaded
         self._inventory_visible = False
         self._inventory_misses = 0
+        self._grid_last: np.ndarray | None = None  # grid thumbnail of the previous pass
+        self._grid_scanned: np.ndarray | None = None  # grid thumbnail of the last read
+        self._mission_visible = False
+        self._mission_misses = 0
+        self._mission_items: dict[str, GridItem] = {}
+        self._mission_last_read = 0.0
+        # Already reported counts of the current mission, in case the screen comes back
+        # (e.g. after alt-tab) - then only the difference is reported
+        self._mission_reported: dict[str, int] = {}
+        self._mission_reported_at = 0.0
         self._wake = threading.Event()
         self._manual = False
         self._stop = False
@@ -142,8 +168,10 @@ class Scanner:
                     self._status(tr("Detection: error ({error})", error=exc))
             else:
                 self._status(tr("Detection: automatic off"))
-            # Look more often while the reward screen is open, cards appear one after another
-            wait = 0.75 if self._rewards_visible else self.settings.interval
+            # Look more often while the reward screen is open (cards appear one after another)
+            # or the inventory is open (react quickly to scrolling)
+            busy = self._rewards_visible or self._inventory_visible
+            wait = 0.75 if busy else self.settings.interval
             self._wake.wait(wait)
             self._wake.clear()
 
@@ -179,6 +207,7 @@ class Scanner:
         if rect is None:
             self._rewards_missed()
             self._inventory_missed()
+            self._mission_missed()
             return
         self._status(tr("Detection: active"))
         frame = capture.backend().grab(rect)
@@ -206,10 +235,15 @@ class Scanner:
             category = self.recognizer.read_line(crop(frame, CATEGORY_LINE))
             if is_prime_parts(category):
                 self._set_inventory_visible(True)
-                if manual:
+                if manual or self._grid_changed(frame):
                     self._scan_inventory(frame, started)
                 return
         self._inventory_missed()
+
+        if screen is None and is_mission_complete(self.recognizer.read_line(crop(frame, MISSION_LINE))):
+            self._mission_seen(frame)
+            return
+        self._mission_missed()
         if screen != SCREEN_RELICS and not manual:
             return
 
@@ -231,7 +265,46 @@ class Scanner:
         self._inventory_misses = 0
         if visible != self._inventory_visible:
             self._inventory_visible = visible
+            if not visible:
+                self._grid_last = self._grid_scanned = None
             self.on_event(InventoryVisible(visible))
+
+    # --- End-of-mission screen ----------------------------------------------
+
+    def _mission_seen(self, frame) -> None:
+        """Collect the received parts while the screen is open; the grid can be scrolled,
+        so it is read again every few seconds. Highest count per part wins."""
+        self._mission_misses = 0
+        if not self._mission_visible:
+            self._mission_visible = True
+            self._mission_last_read = 0.0
+            if time.monotonic() - self._mission_reported_at > 60:
+                self._mission_items = {}
+                self._mission_reported = {}
+                self._debug_save(frame, "mission", True)
+        if self.inventory_matcher is None or time.monotonic() - self._mission_last_read < 3.0:
+            return
+        self._mission_last_read = time.monotonic()
+        for item in read_mission_rewards(frame, self.big_recognizer, self.inventory_matcher):
+            known = self._mission_items.get(item.name)
+            if known is None or item.count > known.count:
+                self._mission_items[item.name] = item
+
+    def _mission_missed(self) -> None:
+        if not self._mission_visible:
+            return
+        self._mission_misses += 1
+        if self._mission_misses >= REWARDS_GONE_AFTER:
+            self._mission_visible = False
+            new = []
+            for item in self._mission_items.values():
+                extra = item.count - self._mission_reported.get(item.name, 0)
+                if extra > 0:
+                    new.append(GridItem(item.name, extra, item.x, item.y, item.confidence))
+                    self._mission_reported[item.name] = item.count
+            self._mission_reported_at = time.monotonic()
+            if new:
+                self.on_event(MissionRewards(tuple(new)))
 
     def _inventory_missed(self) -> None:
         # As with the reward screen: only hide after several misses in a row
@@ -240,12 +313,31 @@ class Scanner:
             if self._inventory_misses >= REWARDS_GONE_AFTER:
                 self._set_inventory_visible(False)
 
+    def _grid_changed(self, frame) -> bool:
+        """Has the inventory grid changed since the last read and settled again?
+
+        Compares small grayscale thumbnails: "settled" = almost no change since the
+        previous pass (scrolling has stopped), "changed" = clearly different from the
+        thumbnail of the last read. The first view of the inventory counts as changed.
+        """
+        x, y, w, h = inventory_grid_rect(frame.shape[1], frame.shape[0])
+        thumb = _thumbnail(frame[y : y + h, x : x + w])
+        settled = self._grid_last is not None and _difference(thumb, self._grid_last) < 3.0
+        self._grid_last = thumb
+        if not settled:
+            return False
+        if self._grid_scanned is not None and _difference(thumb, self._grid_scanned) < 6.0:
+            return False
+        return True
+
     def _scan_inventory(self, frame, started: float) -> None:
         if self.inventory_matcher is None:
             self._status(tr("Detection: market data still missing, scan the inventory again later"))
             return
         self._status(tr("Detection: reading inventory …"))
         items = read_inventory(frame, self.big_recognizer, self.inventory_matcher)
+        x, y, w, h = inventory_grid_rect(frame.shape[1], frame.shape[0])
+        self._grid_scanned = _thumbnail(frame[y : y + h, x : x + w])
         self.on_event(InventoryScanned(tuple(items)))
         self._debug_save(frame, "inventory", True)
         self._status(
@@ -285,3 +377,14 @@ class Scanner:
         path = self.settings.debug_dir / f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}.png"
         if not path.exists():
             Image.fromarray(frame).save(path)
+
+
+def _thumbnail(img: np.ndarray) -> np.ndarray:
+    """Small grayscale image (64 × 24) for cheap change detection."""
+    from PIL import Image
+
+    return np.asarray(Image.fromarray(img).convert("L").resize((64, 24), Image.BILINEAR), dtype=np.float32)
+
+
+def _difference(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.abs(a - b).mean())

@@ -47,6 +47,7 @@ from .scanner import (
     DialogDetected,
     InventoryScanned,
     InventoryVisible,
+    MissionRewards,
     RewardsDetected,
     RewardsGone,
     Scanner,
@@ -455,7 +456,9 @@ class MainWindow(QMainWindow):
             self._scan_now()
         elif isinstance(event, InventoryVisible):
             if self.overlay:
-                if event.visible:
+                if event.visible and self.config["auto_scan"]:
+                    self.overlay.show_hint(tr("Reading prime parts · scroll to add more"))
+                elif event.visible:
                     self.overlay.show_hint(tr("Press {key}: read prime parts", key=self._hotkey_text()))
                 else:
                     self.overlay.hide_hint()
@@ -464,13 +467,15 @@ class MainWindow(QMainWindow):
             self.tabs.setCurrentWidget(self.inventory_tab)
             if self.overlay:
                 self.overlay.flash_hint(
-                    tr(
-                        "✓ {count} parts detected, {new} new · scroll and press {key} again",
-                        count=len(event.items),
-                        new=new,
-                        key=self._hotkey_text(),
-                    )
+                    tr("✓ {count} parts detected, {new} new · scroll for more", count=len(event.items), new=new)
                 )
+        elif isinstance(event, MissionRewards):
+            self.inventory_tab.add_received(list(event.items), self.parts)
+            pieces = sum(i.count for i in event.items)
+            names = ", ".join(i.name for i in event.items)
+            self.statusBar().showMessage(tr("Added to the inventory: {names}", names=names), 15000)
+            if self.overlay:
+                self.overlay.flash_hint(tr("✓ {count} prime parts added to the inventory", count=pieces), 5.0)
         elif isinstance(event, ScannerStatus):
             self.scan_label.setText(event.text)
 

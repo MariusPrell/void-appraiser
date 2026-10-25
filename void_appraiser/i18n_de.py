@@ -48,7 +48,10 @@ DE = {
     "Overlay not available: {error}": "Overlay nicht verfügbar: {error}",
     "Error: {error}": "Fehler: {error}",
     "Press {key}: read prime parts": "{key} drücken: Prime-Teile einlesen",
-    "✓ {count} parts detected, {new} new · scroll and press {key} again": "✓ {count} Teile erkannt, {new} neu · scrollen und erneut {key} drücken",
+    "✓ {count} parts detected, {new} new · scroll for more": "✓ {count} Teile erkannt, {new} neu · weiterscrollen für mehr",
+    "Reading prime parts · scroll to add more": "Prime-Teile werden eingelesen · scrollen für mehr",
+    "Added to the inventory: {names}": "Ins Inventar übernommen: {names}",
+    "✓ {count} prime parts added to the inventory": "✓ {count} Prime-Teile ins Inventar übernommen",
     "{value} platinum": "{value} Platin",
     "{value} ducats": "{value} Ducats",
     "Ø {value} platinum per opening": "Ø {value} Platin pro Öffnung",
@@ -112,13 +115,13 @@ DE = {
     "  (built, not tradeable)": "  (gebaut, nicht handelbar)",
     "Double-click to change, 0 removes the part": "Doppelklick zum Ändern, 0 entfernt das Teil",
     (
-        "In the game, open <b>Inventory → Prime Parts</b> and press <b>{key}</b>. "
-        "Then scroll and press again, the list is extended. "
-        "Double-click a count to correct it."
+        "In the game, open <b>Inventory → Prime Parts</b>: the visible parts are read "
+        "automatically (or with <b>{key}</b>). Scroll to add more. Parts you receive in "
+        "missions are added from the end-of-mission screen. Double-click a count to correct it."
     ): (
-        "Im Spiel <b>Inventar → Prime Parts</b> öffnen und <b>{key}</b> drücken. "
-        "Dann scrollen und erneut drücken, die Liste wird ergänzt. "
-        "Die Anzahl kannst du per Doppelklick korrigieren."
+        "Im Spiel <b>Inventar → Prime Parts</b> öffnen: Die sichtbaren Teile werden automatisch "
+        "eingelesen (oder mit <b>{key}</b>). Zum Ergänzen einfach scrollen. Teile aus Missionen "
+        "werden vom Missions-Endbildschirm übernommen. Die Anzahl kannst du per Doppelklick korrigieren."
     ),
     (
         "{parts} different parts, {pieces} pieces · value: <b>{plat} platinum</b> "
