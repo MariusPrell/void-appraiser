@@ -1,6 +1,6 @@
 [project]
 name = "void-appraiser"
-version = "0.9.0"
+version = "0.10.0"
 description = "Shows the platinum value of Warframe void relic rewards (OCR + warframe.market)"
 license = "MIT"
 license-files = ["LICENSE"]

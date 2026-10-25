@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import theme
 from .drops import Drop, DropTable
 from .i18n import num, tr
 
@@ -50,6 +51,8 @@ class DropSearchTab(QWidget):
         self.bridge.failed.connect(self._on_failed)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 10)
+        layout.setSpacing(10)
         row = QHBoxLayout()
         self.query = QLineEdit()
         self.query.setPlaceholderText(tr("Search, e.g. Gauss Neuroptics or Axi A1 Relic"))
@@ -68,6 +71,7 @@ class DropSearchTab(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSortingEnabled(True)
+        theme.style_table(self.table)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
@@ -78,6 +82,7 @@ class DropSearchTab(QWidget):
         layout.addWidget(self.table, 1)
 
         self.status = QLabel(tr("Loading drop tables …"))
+        self.status.setObjectName("hint")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
 

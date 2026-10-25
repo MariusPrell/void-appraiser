@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import theme
 from .data import Price
 from .i18n import num, tr
 from .paths import cache_dir
@@ -110,7 +111,10 @@ class InventoryTab(QWidget):
         self._user_sorted = False
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 10)
+        layout.setSpacing(10)
         self.info = QLabel()
+        self.info.setObjectName("hint")
         self.info.setWordWrap(True)
         layout.addWidget(self.info)
 
@@ -119,6 +123,7 @@ class InventoryTab(QWidget):
         self.table.verticalHeader().hide()
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSortingEnabled(True)
+        theme.style_table(self.table)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         for col in range(1, len(COLUMNS)):
@@ -128,11 +133,13 @@ class InventoryTab(QWidget):
         layout.addWidget(self.table, 1)
 
         self.summary = QLabel()
+        self.summary.setObjectName("summary")
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
 
         buttons = QHBoxLayout()
         load = QPushButton(tr("Load prices"))
+        load.setObjectName("primary")
         load.clicked.connect(lambda: self.request_prices(list(self.store.items)))
         clear = QPushButton(tr("Clear list"))
         clear.clicked.connect(self._clear)
@@ -212,7 +219,7 @@ class InventoryTab(QWidget):
                     cell.setFlags(cell.flags() & ~Qt.ItemIsEditable)
                 self.table.setItem(row, col, cell)
             if ratio is not None and ratio >= GOOD_RATIO:
-                cells[4].setBackground(QBrush(QColor(45, 106, 79)))
+                cells[4].setBackground(QBrush(QColor(theme.GREEN)))
                 cells[4].setForeground(QBrush(QColor("white")))
             total_plat += (plat or 0) * count
             total_ducats += (ducats or 0) * count

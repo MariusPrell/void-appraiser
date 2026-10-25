@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QBrush, QColor, QFont
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -21,12 +21,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import worldstate
+from . import theme, worldstate
 from .i18n import tr
 from .worldstate import Worldstate, time_left
 
 REFRESH_MS = 60_000
-KIND_COLORS = {"Steel Path": "#d9534f", "Void Storm": "#5b9bd5"}
+KIND_COLORS = {"Steel Path": theme.RED, "Void Storm": theme.CYAN}
+# Day/night etc. in colors that match the state
+STATE_COLORS = {
+    "Day": theme.GOLD, "Night": "#7f9cf5", "Warm": "#f0a35e", "Cold": theme.CYAN,
+    "Fass": "#e07a5f", "Vome": "#81b29a", "Corpus": "#5fa8e8", "Grineer": "#d98c5f",
+}
 TIER_COLORS = {"Lith": "#c08a5a", "Meso": "#b0b0b0", "Neo": "#c9b26b", "Axi": "#e8c547", "Requiem": "#b45dd4", "Omnia": "#7fd1c8"}
 
 
@@ -44,6 +49,7 @@ def _table(columns: tuple[str, ...], stretch: int) -> QTableWidget:
     header = table.horizontalHeader()
     for col in range(len(columns)):
         header.setSectionResizeMode(col, QHeaderView.Stretch if col == stretch else QHeaderView.ResizeToContents)
+    theme.style_table(table)
     return table
 
 
@@ -67,20 +73,23 @@ class OverviewTab(QWidget):
         self.bridge.failed.connect(self._on_failed)
 
         layout = QVBoxLayout(self)
-        bold = QFont()
-        bold.setBold(True)
+        layout.setContentsMargins(14, 12, 14, 10)
+        layout.setSpacing(10)
 
         # Day cycles as small tiles
         self.cycle_grid = QGridLayout()
         self.cycle_labels: dict[str, tuple[QLabel, QLabel]] = {}
         for i, (_, place) in enumerate(worldstate.CYCLES):
             frame = QFrame()
-            frame.setFrameShape(QFrame.StyledPanel)
+            frame.setObjectName("card")
             box = QVBoxLayout(frame)
+            box.setSpacing(2)
             name = QLabel(place)
+            name.setStyleSheet(f"color: {theme.MUTED}; background: transparent;")
             state = QLabel("…")
-            state.setFont(bold)
+            state.setStyleSheet("font-size: 14pt; font-weight: 700; background: transparent;")
             rest = QLabel("")
+            rest.setStyleSheet(f"color: {theme.MUTED}; background: transparent;")
             for label in (name, state, rest):
                 label.setAlignment(Qt.AlignCenter)
                 box.addWidget(label)
@@ -90,8 +99,8 @@ class OverviewTab(QWidget):
 
         # Void fissures with filter
         row = QHBoxLayout()
-        title = QLabel("Void Fissures")
-        title.setFont(bold)
+        title = QLabel("VOID FISSURES")
+        title.setObjectName("section")
         row.addWidget(title)
         row.addStretch(1)
         wanted = set(config.get("fissure_filter", ["Normal", "Steel Path", "Void Storm"]))
@@ -108,8 +117,8 @@ class OverviewTab(QWidget):
         )
         layout.addWidget(self.fissure_table, 3)
 
-        alerts_title = QLabel(tr("Alerts"))
-        alerts_title.setFont(bold)
+        alerts_title = QLabel(tr("Alerts").upper())
+        alerts_title.setObjectName("section")
         layout.addWidget(alerts_title)
         self.alert_table = _table(
             (tr("Mission"), tr("Node"), tr("Enemy"), tr("Level"), tr("Reward"), tr("Time left")), 4
@@ -117,6 +126,7 @@ class OverviewTab(QWidget):
         layout.addWidget(self.alert_table, 1)
 
         self.status = QLabel(tr("Loading data from api.warframestat.us …"))
+        self.status.setObjectName("hint")
         layout.addWidget(self.status)
 
         # Time left every second, data every minute
@@ -179,6 +189,8 @@ class OverviewTab(QWidget):
             labels = self.cycle_labels.get(cycle.place)
             if labels:
                 labels[0].setText(tr(cycle.state))
+                color = STATE_COLORS.get(cycle.state, theme.TEXT)
+                labels[0].setStyleSheet(f"font-size: 14pt; font-weight: 700; color: {color}; background: transparent;")
 
         fissures = self._visible_fissures()
         self.fissure_table.setRowCount(len(fissures))
@@ -206,7 +218,8 @@ class OverviewTab(QWidget):
         for cycle in self.state.cycles:
             labels = self.cycle_labels.get(cycle.place)
             if labels:
-                labels[1].setText(tr("{time} left", time=time_left(cycle.expiry, now)))
+                left = time_left(cycle.expiry, now)
+                labels[1].setText(left if cycle.expiry <= now else tr("{time} left", time=left))
         fissures = self._visible_fissures()
         if len(fissures) != self.fissure_table.rowCount():
             self._fill()  # a fissure has expired

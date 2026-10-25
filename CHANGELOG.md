@@ -3,6 +3,7 @@
 ## 0.10.0
 - The inventory is read **automatically**: open Prime Parts and scroll, no key needed (the key still works).
 - **Mission rewards:** prime parts listed on the end-of-mission screen ("MISSION COMPLETE") are added to the inventory list automatically.
+- **New look:** dark "void" theme with gold accents, card tiles in the overview, cleaner tables and an app icon.
 
 ## 0.9.0
 - The interface is now in **English** by default; **German** can be selected under File → Settings.

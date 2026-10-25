@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QAction, QBrush, QColor, QFont
+from PySide6.QtGui import QAction, QBrush, QColor
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import __version__, capture
+from . import __version__, capture, theme
 from .data import REFINEMENTS, Market, Price, RelicDB, Reward, expected_value
 from .dropsearch import DropSearchTab
 from .hotkey import KEYS, HotkeyListener, normalize
@@ -55,8 +55,8 @@ from .scanner import (
     ScannerStatus,
 )
 
-RARITY_COLORS = {"Common": "#c08a5a", "Uncommon": "#c0c0c0", "Rare": "#e8c547"}
-BEST_COLOR = "#2d6a4f"
+RARITY_COLORS = {"Common": "#c99364", "Uncommon": "#c3cad8", "Rare": theme.GOLD}
+BEST_COLOR = theme.GREEN
 
 DEFAULTS = {
     "language": "en",
@@ -93,6 +93,7 @@ def _make_table(columns: tuple[str, ...]) -> QTableWidget:
     header.setSectionResizeMode(0, QHeaderView.Stretch)
     for col in range(1, len(columns)):
         header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+    theme.style_table(table)
     return table
 
 
@@ -222,13 +223,11 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget()
         layout = QVBoxLayout(central)
-        big = QFont()
-        big.setPointSize(big.pointSize() + 4)
-        big.setBold(True)
-
+        layout.setContentsMargins(14, 12, 14, 10)
+        layout.setSpacing(10)
         # Choice on the reward screen
         self.choice_title = QLabel(tr("Reward choice: nothing detected yet"))
-        self.choice_title.setFont(big)
+        self.choice_title.setObjectName("title")
         layout.addWidget(self.choice_title)
         self.choice_table = _make_table((tr("Part"), tr("Platinum"), tr("from"), tr("Ducats")))
         self.choice_table.setMaximumHeight(170)
@@ -249,7 +248,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(row)
 
         self.title = QLabel(tr("Loading relic data …"))
-        self.title.setFont(big)
+        self.title.setObjectName("title")
         layout.addWidget(self.title)
 
         self.table = _make_table(
@@ -259,10 +258,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.table, 1)
 
         self.summary = QLabel()
+        self.summary.setObjectName("summary")
+        self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
 
         buttons = QHBoxLayout()
         self.scan_btn = QPushButton(tr("Scan now"))
+        self.scan_btn.setObjectName("primary")
         self.scan_btn.clicked.connect(self._scan_now)
         self.refresh_btn = QPushButton(tr("Refresh prices"))
         self.refresh_btn.clicked.connect(lambda: self._fetch_prices(force=True))
@@ -274,6 +276,8 @@ class MainWindow(QMainWindow):
         # Tabs: overview first, then the relic view built above
         self.relic_page = central
         self.tabs = QTabWidget()
+        self.tabs.setCornerWidget(theme.wordmark(), Qt.TopRightCorner)
+        self.tabs.setDocumentMode(True)
         self.overview = OverviewTab(self.config, save_config)
         self.tabs.addTab(self.overview, tr("Overview"))
         self.tabs.addTab(self.relic_page, tr("Relics"))
@@ -629,6 +633,7 @@ class MainWindow(QMainWindow):
 
         if not self.rewards:
             self.summary.clear()
+            self.summary.hide()
             return
         best = max(self.rewards, key=lambda r: values.get(r.name) or 0)
         ev = expected_value(self.rewards, values)
@@ -640,6 +645,7 @@ class MainWindow(QMainWindow):
                 " · most valuable part: <b>{name}</b> ({value} platinum)", name=best.name, value=num(values[best.name])
             )
         self.summary.setText(text)
+        self.summary.show()
 
     def closeEvent(self, event) -> None:
         if self.watcher:
@@ -666,7 +672,7 @@ def run(log_path: Path | None = None) -> int:
     app = QApplication.instance() or QApplication([])
     app.setApplicationName("Void Appraiser")
     app.setDesktopFileName("void-appraiser")
-    app.setStyle("Fusion")
+    theme.apply(app)
     window = MainWindow(log_path or find_log(), config)
     window.show()
     return app.exec()
